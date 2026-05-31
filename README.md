@@ -6,6 +6,8 @@ engine by Irlan Robson.
 This current release is intentionally small. It contains the generated
 single-header API and one self-checking example.
 
+Try it at https://cstaavetti.github.io/cbounce/
+
 ## Status
 
 This is `v0.1.0`. There is no documented known functional parity gap against the
