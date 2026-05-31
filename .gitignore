@@ -1,0 +1,15 @@
+.DS_Store
+build/
+*.o
+*.obj
+*.a
+*.lib
+*.so
+*.dylib
+*.dll
+*.exe
+*.dSYM/
+compile_commands.json
+cmake-build-*/
+.vscode/
+.idea/
