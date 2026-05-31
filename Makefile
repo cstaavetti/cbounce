@@ -1,12 +1,19 @@
 CC ?= cc
 EMCC ?= emcc
-NODE ?= node
 PYTHON ?= python3
 PORT ?= 8000
 CFLAGS ?= -std=c99 -Wall -Wextra -pedantic -O2
 CPPFLAGS ?= -I.
 LDLIBS ?= -lm
 WEB_BUILD_DIR := build/web/site
+
+ifeq ($(origin NODE), undefined)
+ifneq ($(EMSDK_NODE),)
+NODE := $(EMSDK_NODE)
+else
+NODE := node
+endif
+endif
 
 .PHONY: all example test web web-test web-serve clean
 
