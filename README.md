@@ -42,8 +42,41 @@ make example
 
 Both targets build `examples/example.c` into `build/example`.
 
+## Web demo
+
+Build the browser FPS collapse demo:
+
+```sh
+make web
+```
+
+This writes a static site to `build/web/site`. To run the smoke test:
+
+```sh
+make web-test
+```
+
+To play it locally:
+
+```sh
+make web-serve
+```
+
+Then open `http://localhost:8000`.
+
+The demo uses `cbounce` compiled to WebAssembly for physics and loads Three.js
+from a pinned jsDelivr CDN URL for rendering.
+
+## GitHub Pages
+
+The repository includes a GitHub Actions workflow at
+`.github/workflows/pages.yml`. After the workflow is merged to `main`, set the
+repository's Pages source to "GitHub Actions" in GitHub settings. Successful
+pushes to `main` will publish the static demo to the repository Pages site.
+
 ## Files
 
 - `cbounce.h` - generated single-header release artifact.
 - `examples/example.c` - self-checking single-header usage example.
+- `examples/web/` - WebAssembly FPS collapse demo.
 - `license.txt` - zlib-style license from Bounce.
