@@ -69,13 +69,6 @@ Then open `http://localhost:8000`.
 The demo uses `cbounce` compiled to WebAssembly for physics and loads Three.js
 from a pinned jsDelivr CDN URL for rendering.
 
-## GitHub Pages
-
-The repository includes a GitHub Actions workflow at
-`.github/workflows/pages.yml`. After the workflow is merged to `main`, set the
-repository's Pages source to "GitHub Actions" in GitHub settings. Successful
-pushes to `main` will publish the static demo to the repository Pages site.
-
 ## Files
 
 - `cbounce.h` - generated single-header release artifact.
