@@ -4,13 +4,18 @@ import createCbounceDemo from "./cbounce_demo.mjs";
 const canvas = document.getElementById("viewport");
 const statsEl = document.getElementById("stats");
 const playButton = document.getElementById("play");
-const resetButton = document.getElementById("reset");
 
 const KIND_BOX = 1;
 const KIND_WOOD = 2;
 const KIND_PROJECTILE = 3;
 const KIND_FLOOR = 4;
 const KIND_WALL = 5;
+const KIND_CHAIN_BALL = 6;
+const KIND_CHAIN_LINK = 7;
+const KIND_CHAIN_FRAME = 8;
+const KIND_TUMBLER_WALL = 9;
+const KIND_TUMBLER_BALL = 10;
+const KIND_TUMBLER_BOX = 11;
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x9fb3bd);
@@ -26,7 +31,7 @@ const renderer = new THREE.WebGLRenderer({
 });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
 renderer.shadowMap.enabled = true;
-renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.shadowMap.type = THREE.PCFShadowMap;
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 
 const hemi = new THREE.HemisphereLight(0xe8f5ff, 0x66513e, 1.6);
@@ -147,6 +152,12 @@ const materials = new Map([
   [KIND_PROJECTILE, new THREE.MeshStandardMaterial({ color: 0xffe6a3, roughness: 0.38, metalness: 0.22, emissive: 0x4b3512, emissiveIntensity: 0.25 })],
   [KIND_FLOOR, new THREE.MeshStandardMaterial({ map: floorTexture, roughness: 0.9, metalness: 0 })],
   [KIND_WALL, new THREE.MeshStandardMaterial({ map: wallTexture, roughness: 0.82, metalness: 0 })],
+  [KIND_CHAIN_BALL, new THREE.MeshStandardMaterial({ color: 0x9d2f28, roughness: 0.42, metalness: 0.38 })],
+  [KIND_CHAIN_LINK, new THREE.MeshStandardMaterial({ color: 0x46515a, roughness: 0.36, metalness: 0.58 })],
+  [KIND_CHAIN_FRAME, new THREE.MeshStandardMaterial({ color: 0x30383d, roughness: 0.62, metalness: 0.34 })],
+  [KIND_TUMBLER_WALL, new THREE.MeshStandardMaterial({ color: 0x6aa7ad, roughness: 0.34, metalness: 0.18, transparent: true, opacity: 0.48, depthWrite: false })],
+  [KIND_TUMBLER_BALL, new THREE.MeshStandardMaterial({ color: 0xd8ba55, roughness: 0.48, metalness: 0.08 })],
+  [KIND_TUMBLER_BOX, new THREE.MeshStandardMaterial({ color: 0x8f6ec7, roughness: 0.6, metalness: 0.06 })],
 ]);
 
 function resize() {
@@ -172,8 +183,12 @@ function resetDemo() {
   lastShotAt = 0;
 }
 
+function isSphereKind(kind) {
+  return kind === KIND_PROJECTILE || kind === KIND_CHAIN_BALL || kind === KIND_CHAIN_LINK || kind === KIND_TUMBLER_BALL;
+}
+
 function geometryFor(kind, sx, sy, sz) {
-  if (kind === KIND_PROJECTILE) {
+  if (isSphereKind(kind)) {
     return new THREE.SphereGeometry(Math.max(0.02, sx), 18, 12);
   }
   return new THREE.BoxGeometry(Math.max(0.02, sx), Math.max(0.02, sy), Math.max(0.02, sz));
@@ -271,7 +286,7 @@ function updateCamera(dt) {
 function updateStats(dt) {
   const instantFps = dt > 0 ? 1 / dt : 60;
   smoothedFps = smoothedFps * 0.92 + instantFps * 0.08;
-  statsEl.textContent = `FPS ${Math.round(smoothedFps)} | Boxes ${wasm._demo_toppled_targets()}/${wasm._demo_total_targets()} | Shots ${wasm._demo_active_projectiles()} | Bodies ${wasm._demo_body_count()}`;
+  statsEl.textContent = `FPS ${Math.round(smoothedFps)} | Targets ${wasm._demo_toppled_targets()}/${wasm._demo_total_targets()} | Shots ${wasm._demo_active_projectiles()} | Bodies ${wasm._demo_body_count()}`;
 }
 
 function stepSimulation(seconds) {
@@ -362,7 +377,6 @@ function frame(now) {
 
 window.addEventListener("resize", resize);
 playButton.addEventListener("click", requestPlay);
-resetButton.addEventListener("click", resetDemo);
 canvas.addEventListener("mousedown", (event) => {
   if (event.button !== 0) {
     return;

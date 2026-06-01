@@ -6,6 +6,13 @@ CFLAGS ?= -std=c99 -Wall -Wextra -pedantic -O2
 CPPFLAGS ?= -I.
 LDLIBS ?= -lm
 WEB_BUILD_DIR := build/web/site
+WEB_DEMO_SRCS := \
+	examples/web/demo.c \
+	examples/web/demo_shared.c \
+	examples/web/demo_fps.c \
+	examples/web/demo_stacks.c \
+	examples/web/demo_chain.c \
+	examples/web/demo_tumbler.c
 
 ifeq ($(origin NODE), undefined)
 ifneq ($(EMSDK_NODE),)
@@ -26,9 +33,9 @@ build/example: examples/example.c cbounce.h
 example test: build/example
 	./build/example
 
-$(WEB_BUILD_DIR)/cbounce_demo.mjs: examples/web/demo.c cbounce.h Makefile
+$(WEB_BUILD_DIR)/cbounce_demo.mjs: $(WEB_DEMO_SRCS) examples/web/demo_shared.h cbounce.h Makefile
 	mkdir -p $(WEB_BUILD_DIR)
-	$(EMCC) $(CPPFLAGS) -std=c99 -O2 --no-entry $< -o $@ \
+	$(EMCC) $(CPPFLAGS) -std=c99 -O2 --no-entry $(WEB_DEMO_SRCS) -o $@ \
 		-sMODULARIZE=1 \
 		-sEXPORT_ES6=1 \
 		-sEXPORT_NAME=createCbounceDemo \
