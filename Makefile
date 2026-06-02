@@ -12,7 +12,8 @@ WEB_DEMO_SRCS := \
 	examples/web/demo_fps.c \
 	examples/web/demo_stacks.c \
 	examples/web/demo_chain.c \
-	examples/web/demo_tumbler.c
+	examples/web/demo_tumbler.c \
+	examples/web/demo_vehicle.c
 
 ifeq ($(origin NODE), undefined)
 ifneq ($(EMSDK_NODE),)
@@ -45,7 +46,7 @@ $(WEB_BUILD_DIR)/cbounce_demo.mjs: $(WEB_DEMO_SRCS) examples/web/demo_shared.h c
 		-sNO_EXIT_RUNTIME=1 \
 		-sFILESYSTEM=0 \
 		-sEXPORTED_RUNTIME_METHODS='["HEAPF32"]' \
-		-sEXPORTED_FUNCTIONS='["_demo_reset","_demo_step","_demo_move_player","_demo_shoot_projectile","_demo_render_count","_demo_render_stride","_demo_render_data","_demo_player_x","_demo_player_y","_demo_player_z","_demo_active_projectiles","_demo_total_targets","_demo_toppled_targets","_demo_body_count"]'
+		-sEXPORTED_FUNCTIONS='["_demo_reset","_demo_step","_demo_move_player","_demo_shoot_projectile","_demo_drive_car","_demo_car_can_enter","_demo_car_exit","_demo_car_x","_demo_car_y","_demo_car_z","_demo_car_qx","_demo_car_qy","_demo_car_qz","_demo_car_qw","_demo_car_steer","_demo_car_wheel_roll","_demo_render_count","_demo_render_stride","_demo_render_data","_demo_player_x","_demo_player_y","_demo_player_z","_demo_active_projectiles","_demo_total_targets","_demo_toppled_targets","_demo_body_count"]'
 
 $(WEB_BUILD_DIR)/cbounce_demo.wasm: $(WEB_BUILD_DIR)/cbounce_demo.mjs
 	@test -f $@ || $(MAKE) -B $(WEB_BUILD_DIR)/cbounce_demo.mjs

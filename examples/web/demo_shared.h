@@ -7,10 +7,12 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#define DEMO_MAX_RENDER 320u
+#define DEMO_MAX_RENDER 420u
 #define DEMO_MAX_PROJECTILES 32u
 #define DEMO_RENDER_STRIDE 13u
 #define DEMO_FIXED_DT (1.0f / 120.0f)
+#define DEMO_ARENA_HALF_X 36.0f
+#define DEMO_ARENA_HALF_Z 36.0f
 
 enum DemoKind {
   DEMO_KIND_BOX = 1,
@@ -24,6 +26,10 @@ enum DemoKind {
   DEMO_KIND_TUMBLER_WALL = 9,
   DEMO_KIND_TUMBLER_BALL = 10,
   DEMO_KIND_TUMBLER_BOX = 11,
+  DEMO_KIND_TERRAIN = 12,
+  DEMO_KIND_CAR_CHASSIS = 13,
+  DEMO_KIND_CAR_WHEEL = 14,
+  DEMO_KIND_BARREL = 15,
 };
 
 typedef struct DemoRenderBody {
@@ -78,6 +84,15 @@ b3Body *demo_create_sphere_body(int kind, b3BodyType type, bool target,
 b3Body *demo_create_sphere(int kind, bool dynamic, bool target,
                            b3Vec3 position, scalar radius, scalar density,
                            scalar friction, scalar restitution);
+b3Body *demo_create_cylinder_body(int kind, b3BodyType type, bool target,
+                                  b3Vec3 position, b3Quat orientation,
+                                  scalar radius, scalar half_height,
+                                  scalar density, scalar friction,
+                                  scalar restitution);
+b3Body *demo_create_cylinder(int kind, bool dynamic, bool target,
+                             b3Vec3 position, b3Quat orientation,
+                             scalar radius, scalar half_height, scalar density,
+                             scalar friction, scalar restitution);
 
 void demo_fps_init_projectiles(void);
 void demo_fps_update_projectiles(scalar dt);
@@ -90,5 +105,13 @@ void demo_stacks_create(void);
 void demo_chain_create(void);
 void demo_tumbler_create(void);
 void demo_tumbler_step(scalar dt);
+void demo_vehicle_create(void);
+void demo_vehicle_drive(scalar throttle, scalar steer, scalar dt);
+int demo_vehicle_can_enter(b3Vec3 player_position);
+int demo_vehicle_exit_to_player(void);
+b3Vec3 demo_vehicle_position(void);
+b3Quat demo_vehicle_orientation(void);
+scalar demo_vehicle_steer_angle(void);
+scalar demo_vehicle_wheel_roll(void);
 
 #endif

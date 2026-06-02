@@ -154,7 +154,12 @@
         font-size: 16px;
       }
 
-      body.playing .gate {
+      body.playing .gate,
+      body.driving .gate {
+        display: none;
+      }
+
+      body.driving .reticle {
         display: none;
       }
 
@@ -191,6 +196,8 @@
         <div class="controls-grid">
           <span class="key">WASD</span><span>Move</span>
           <span class="key">Mouse</span><span>Look</span>
+          <span class="key">E</span><span>Enter/exit car</span>
+          <span class="key">Arrows</span><span>Drive car</span>
           <span class="key">Click</span><span>Shoot balls</span>
           <span class="key">Walk</span><span>Push objects</span>
           <span class="key">R</span><span>Reset</span>

@@ -22,6 +22,8 @@ const KIND_PROJECTILE = 3;
 const KIND_CHAIN_BALL = 6;
 const KIND_TUMBLER_BALL = 10;
 const KIND_TUMBLER_BOX = 11;
+const KIND_CAR_CHASSIS = 13;
+const KIND_CAR_WHEEL = 14;
 
 function snapshotBodies(filterKind) {
   const count = wasm._demo_render_count();
@@ -55,6 +57,17 @@ function stepFrames(count) {
   }
 }
 
+function carForward() {
+  const qx = wasm._demo_car_qx();
+  const qy = wasm._demo_car_qy();
+  const qz = wasm._demo_car_qz();
+  const qw = wasm._demo_car_qw();
+  return {
+    x: -2 * (qx * qz + qw * qy),
+    z: -(1 - 2 * (qx * qx + qy * qy)),
+  };
+}
+
 if (!wasm._demo_shoot_projectile(0.0, 6.0, 0.0, 1.0, 0.0, 0.0)) {
   throw new Error("demo_shoot_projectile failed for gravity check");
 }
@@ -64,6 +77,44 @@ const projectileEnd = snapshotBodies((kind) => kind === KIND_PROJECTILE)[0];
 if (!projectileStart || !projectileEnd ||
     projectileEnd.y >= projectileStart.y - 0.015) {
   throw new Error("projectile did not fall under gravity");
+}
+
+if (!wasm._demo_reset()) {
+  throw new Error("demo_reset failed before target check");
+}
+
+if (!wasm._demo_car_can_enter(wasm._demo_player_x(), wasm._demo_player_y(), wasm._demo_player_z())) {
+  throw new Error("player did not start close enough to enter the car");
+}
+const carStart = snapshotBodies((kind) => kind === KIND_CAR_CHASSIS)[0];
+const wheelsStart = snapshotBodies((kind) => kind === KIND_CAR_WHEEL);
+if (!carStart || wheelsStart.length !== 4) {
+  throw new Error(`expected car chassis and four wheels, got chassis=${Boolean(carStart)} wheels=${wheelsStart.length}`);
+}
+for (let i = 0; i < 300; i += 1) {
+  wasm._demo_drive_car(1, 0, 1 / 120);
+  wasm._demo_step(1 / 120);
+}
+const carEnd = snapshotBodies((kind) => kind === KIND_CAR_CHASSIS)[0];
+const carMovement = carEnd
+  ? Math.abs(carEnd.x - carStart.x) + Math.abs(carEnd.z - carStart.z)
+  : 0;
+if (carMovement < 0.65) {
+  throw new Error(`car did not drive far enough: ${carMovement.toFixed(3)}`);
+}
+
+if (!wasm._demo_reset()) {
+  throw new Error("demo_reset failed before car steering check");
+}
+const turnStart = carForward();
+for (let i = 0; i < 300; i += 1) {
+  wasm._demo_drive_car(1, 1, 1 / 120);
+  wasm._demo_step(1 / 120);
+}
+const turnEnd = carForward();
+const turnDelta = Math.abs(turnEnd.x - turnStart.x);
+if (Math.abs(wasm._demo_car_steer()) < 0.35 || turnDelta < 0.25) {
+  throw new Error(`car did not steer enough: steer=${wasm._demo_car_steer().toFixed(3)} turn=${turnDelta.toFixed(3)}`);
 }
 
 if (!wasm._demo_reset()) {
@@ -159,4 +210,4 @@ if (escapedTumblerPiece) {
   throw new Error(`tumbler piece escaped: ${JSON.stringify(escapedTumblerPiece)}`);
 }
 
-console.log(`web smoke passed: ${before.length} targets, movement=${movement.toFixed(3)}, slide=${slideDistance.toFixed(3)}, tangent=${tangentSlideDistance.toFixed(3)}, away=${awayDistance.toFixed(3)}`);
+console.log(`web smoke passed: ${before.length} targets, car=${carMovement.toFixed(3)}, turn=${turnDelta.toFixed(3)}, movement=${movement.toFixed(3)}, slide=${slideDistance.toFixed(3)}, tangent=${tangentSlideDistance.toFixed(3)}, away=${awayDistance.toFixed(3)}`);

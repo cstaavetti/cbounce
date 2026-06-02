@@ -9,10 +9,10 @@
 #define DEMO_PLAYER_CAST_SKIN 0.018f
 #define DEMO_PLAYER_PUSH_IMPULSE 1.25f
 #define DEMO_PLAYER_SLIDE_PASSES 5
-#define DEMO_PLAYER_MIN_X (-16.14f)
-#define DEMO_PLAYER_MAX_X 16.14f
-#define DEMO_PLAYER_MIN_Z (-19.14f)
-#define DEMO_PLAYER_MAX_Z 13.14f
+#define DEMO_PLAYER_MIN_X (-DEMO_ARENA_HALF_X + DEMO_PLAYER_RADIUS + 0.28f)
+#define DEMO_PLAYER_MAX_X (DEMO_ARENA_HALF_X - DEMO_PLAYER_RADIUS - 0.28f)
+#define DEMO_PLAYER_MIN_Z (-DEMO_ARENA_HALF_Z + DEMO_PLAYER_RADIUS + 0.28f)
+#define DEMO_PLAYER_MAX_Z (DEMO_ARENA_HALF_Z - DEMO_PLAYER_RADIUS - 0.28f)
 #define DEMO_PROJECTILE_RADIUS 0.18f
 #define DEMO_PROJECTILE_SPEED 42.0f
 
@@ -35,7 +35,7 @@ static bool demo_player_filter(const b3Body *body, const b3Fixture *fixture,
     return true;
   }
   if (entry->kind == DEMO_KIND_FLOOR || entry->kind == DEMO_KIND_WALL ||
-      entry->kind == DEMO_KIND_PROJECTILE) {
+      entry->kind == DEMO_KIND_TERRAIN || entry->kind == DEMO_KIND_PROJECTILE) {
     return false;
   }
   return true;
@@ -163,8 +163,9 @@ void demo_fps_update_projectiles(scalar dt) {
     }
     entry->ttl -= dt;
     b3Vec3 pos = b3Body_GetPosition(entry->body);
-    if (entry->ttl <= 0.0f || pos.y < -4.0f || demo_abs(pos.x) > 20.0f ||
-        pos.z < -22.0f || pos.z > 16.0f) {
+    if (entry->ttl <= 0.0f || pos.y < -8.0f ||
+        demo_abs(pos.x) > DEMO_ARENA_HALF_X + 5.0f ||
+        demo_abs(pos.z) > DEMO_ARENA_HALF_Z + 5.0f) {
       demo_destroy_projectile(entry);
     }
   }

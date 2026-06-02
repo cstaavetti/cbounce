@@ -552,6 +552,9 @@ typedef struct b3ClusterPolygon {
 } b3ClusterPolygon;
 
 #define B3_NULL_CLUSTER B3_MAX_U32
+#define B3_HULL_SHAPE_BUILTIN_NONE 0u
+#define B3_HULL_SHAPE_BUILTIN_CYLINDER 1u
+#define B3_HULL_SHAPE_BUILTIN_CONE 2u
 
 typedef struct b3Observation {
   b3Vec3 point;
@@ -601,6 +604,9 @@ typedef struct b3HullShape {
   const b3Hull *genericHull;
   const b3Vec3 *vertices;
   uint32 vertexCount;
+  uint32 builtinHullType;
+  scalar builtinRadius;
+  scalar builtinEy;
 } b3HullShape;
 
 typedef struct b3MeshShape {
@@ -9019,6 +9025,7 @@ void b3BroadPhase_DebugDraw(const b3BroadPhase *broadPhase,
 /* source: src/collide.c */
 #define clip_plane_distance cbounce_collide_clip_plane_distance
 #define collide_manifold_clear cbounce_collide_collide_manifold_clear
+#define collide_manifold_clear_contact_state cbounce_collide_collide_manifold_clear_contact_state
 #define collide_quat_rotate_vec3 cbounce_collide_collide_quat_rotate_vec3
 #define collide_quat_mul cbounce_collide_collide_quat_mul
 #define collide_transform_mul_point cbounce_collide_collide_transform_mul_point
@@ -9106,6 +9113,15 @@ void b3BroadPhase_DebugDraw(const b3BroadPhase *broadPhase,
 #define sort_triangle_hull_contact_indices cbounce_collide_sort_triangle_hull_contact_indices
 #define select_triangle_hull_vertex_contacts cbounce_collide_select_triangle_hull_vertex_contacts
 #define hull_topology_from_shape cbounce_collide_hull_topology_from_shape
+#define cylinder_extents_from_vertices cbounce_collide_cylinder_extents_from_vertices
+#define cylinder_extents_from_shape cbounce_collide_cylinder_extents_from_shape
+#define cone_extents_from_vertices cbounce_collide_cone_extents_from_vertices
+#define cone_extents_from_shape cbounce_collide_cone_extents_from_shape
+#define cylinder_topology_from_shape cbounce_collide_cylinder_topology_from_shape
+#define scale_cone_plane cbounce_collide_scale_cone_plane
+#define cone_topology_from_shape cbounce_collide_cone_topology_from_shape
+#define hull_shape_has_builtin_topology cbounce_collide_hull_shape_has_builtin_topology
+#define hull_topology_from_shape_with_builtin cbounce_collide_hull_topology_from_shape_with_builtin
 #define hull_topology_from_hull cbounce_collide_hull_topology_from_hull
 #define box_hull_is_centered cbounce_collide_box_hull_is_centered
 #define hull_shape_has_translated_box cbounce_collide_hull_shape_has_translated_box
@@ -9117,6 +9133,15 @@ void b3BroadPhase_DebugDraw(const b3BroadPhase *broadPhase,
 #define is_minkowski_face cbounce_collide_is_minkowski_face
 #define project_topology_edge cbounce_collide_project_topology_edge
 #define query_topology_edge_separation cbounce_collide_query_topology_edge_separation
+#define cylinder_fast_atan2 cbounce_collide_cylinder_fast_atan2
+#define cylinder_edge_angle_bin cbounce_collide_cylinder_edge_angle_bin
+#define select_cylinder_cap_edge_candidate cbounce_collide_select_cylinder_cap_edge_candidate
+#define select_cylinder_side_edge_candidate cbounce_collide_select_cylinder_side_edge_candidate
+#define select_cylinder_edge_candidate cbounce_collide_select_cylinder_edge_candidate
+#define cylinder_edge_direction_world cbounce_collide_cylinder_edge_direction_world
+#define query_topology_edge_pair_separation cbounce_collide_query_topology_edge_pair_separation
+#define query_edge_candidate_pair cbounce_collide_query_edge_candidate_pair
+#define query_cylinder_pair_edge_candidates cbounce_collide_query_cylinder_pair_edge_candidates
 #define feature_cache_read_topology_face cbounce_collide_feature_cache_read_topology_face
 #define feature_cache_read_topology_edge cbounce_collide_feature_cache_read_topology_edge
 #define feature_cache_read_topology_state cbounce_collide_feature_cache_read_topology_state
@@ -9128,6 +9153,15 @@ void b3BroadPhase_DebugDraw(const b3BroadPhase *broadPhase,
 #define rebuild_cached_topology_edge_contact cbounce_collide_rebuild_cached_topology_edge_contact
 #define build_topology_face_contact cbounce_collide_build_topology_face_contact
 #define rebuild_topology_overlap_from_cache cbounce_collide_rebuild_topology_overlap_from_cache
+#define query_topology_face_index_separation cbounce_collide_query_topology_face_index_separation
+#define build_cylinder_edge_contact_from_indices cbounce_collide_build_cylinder_edge_contact_from_indices
+#define cylinder_edge_direction_world_unchecked cbounce_collide_cylinder_edge_direction_world_unchecked
+#define rebuild_cylinder_cap_side_edge_contact cbounce_collide_rebuild_cylinder_cap_side_edge_contact
+#define collide_cylinder_pair_from_candidates cbounce_collide_collide_cylinder_pair_from_candidates
+#define hull_shape_is_builtin_cylinder cbounce_collide_hull_shape_is_builtin_cylinder
+#define hull_shape_is_unit_builtin_cylinder cbounce_collide_hull_shape_is_unit_builtin_cylinder
+#define builtin_cylinder_topology_from_shape cbounce_collide_builtin_cylinder_topology_from_shape
+#define collide_builtin_cylinder_pair cbounce_collide_collide_builtin_cylinder_pair
 #define collide_topology_hulls cbounce_collide_collide_topology_hulls
 #define query_topology_capsule_face_separation cbounce_collide_query_topology_capsule_face_separation
 #define query_topology_capsule_edge_separation cbounce_collide_query_topology_capsule_edge_separation
@@ -9136,6 +9170,7 @@ void b3BroadPhase_DebugDraw(const b3BroadPhase *broadPhase,
 #define build_topology_capsule_edge_contact cbounce_collide_build_topology_capsule_edge_contact
 #define collide_topology_hull_capsule cbounce_collide_collide_topology_hull_capsule
 #define triangle_topology_from_shape cbounce_collide_triangle_topology_from_shape
+#define build_box_vertex_hull_dominant_face_contact cbounce_collide_build_box_vertex_hull_dominant_face_contact
 #define build_box_vertex_hull_contacts cbounce_collide_build_box_vertex_hull_contacts
 #define vertex_hull_face_basis cbounce_collide_vertex_hull_face_basis
 #define collect_vertex_hull_support_face cbounce_collide_collect_vertex_hull_support_face
@@ -9212,6 +9247,343 @@ typedef struct b3HullTopology {
   b3Vec3 centroid;
 } b3HullTopology;
 
+typedef struct b3BuiltInHullTopology {
+  b3Plane cylinderPlanes[B3_CYLINDER_HULL_SEGMENTS + 2u];
+  b3Plane conePlanes[B3_CONE_HULL_SEGMENTS + 1u];
+} b3BuiltInHullTopology;
+
+static const b3HalfEdge k_cylinder_hull_edges[120] = {
+    {0u, 1u, 0u, 6u, 2u},       {22u, 0u, 1u, 12u, 8u},
+    {22u, 3u, 0u, 0u, 4u},      {7u, 2u, 4u, 72u, 13u},
+    {7u, 5u, 0u, 2u, 6u},       {17u, 4u, 16u, 15u, 73u},
+    {17u, 7u, 0u, 4u, 0u},      {0u, 6u, 2u, 9u, 14u},
+    {0u, 9u, 1u, 1u, 10u},      {28u, 8u, 2u, 48u, 7u},
+    {28u, 11u, 1u, 8u, 12u},    {27u, 10u, 9u, 75u, 49u},
+    {27u, 13u, 1u, 10u, 1u},    {22u, 12u, 4u, 3u, 74u},
+    {17u, 15u, 2u, 7u, 16u},    {32u, 14u, 16u, 101u, 5u},
+    {32u, 17u, 2u, 14u, 18u},   {4u, 16u, 10u, 102u, 100u},
+    {4u, 19u, 2u, 16u, 20u},    {30u, 18u, 11u, 104u, 103u},
+    {30u, 21u, 2u, 18u, 22u},   {13u, 20u, 15u, 115u, 105u},
+    {13u, 23u, 2u, 20u, 24u},   {19u, 22u, 14u, 112u, 114u},
+    {19u, 25u, 2u, 22u, 26u},   {37u, 24u, 21u, 93u, 113u},
+    {37u, 27u, 2u, 24u, 28u},   {2u, 26u, 6u, 94u, 92u},
+    {2u, 29u, 2u, 26u, 30u},    {31u, 28u, 7u, 91u, 95u},
+    {31u, 31u, 2u, 28u, 32u},   {14u, 30u, 5u, 55u, 90u},
+    {14u, 33u, 2u, 30u, 34u},   {18u, 32u, 3u, 52u, 54u},
+    {18u, 35u, 2u, 32u, 36u},   {34u, 34u, 20u, 111u, 53u},
+    {34u, 37u, 2u, 34u, 38u},   {11u, 36u, 13u, 109u, 110u},
+    {11u, 39u, 2u, 36u, 40u},   {24u, 38u, 12u, 106u, 108u},
+    {24u, 41u, 2u, 38u, 42u},   {8u, 40u, 17u, 116u, 107u},
+    {8u, 43u, 2u, 40u, 44u},    {23u, 42u, 18u, 118u, 117u},
+    {23u, 45u, 2u, 42u, 46u},   {36u, 44u, 19u, 97u, 119u},
+    {36u, 47u, 2u, 44u, 48u},   {3u, 46u, 8u, 98u, 96u},
+    {3u, 49u, 2u, 46u, 9u},     {28u, 48u, 9u, 11u, 99u},
+    {1u, 51u, 3u, 54u, 52u},    {20u, 50u, 4u, 88u, 56u},
+    {20u, 53u, 3u, 50u, 33u},   {18u, 52u, 20u, 35u, 89u},
+    {14u, 55u, 3u, 33u, 50u},   {1u, 54u, 5u, 57u, 31u},
+    {1u, 57u, 4u, 51u, 58u},    {26u, 56u, 5u, 90u, 55u},
+    {26u, 59u, 4u, 56u, 60u},   {10u, 58u, 7u, 95u, 91u},
+    {10u, 61u, 4u, 58u, 62u},   {35u, 60u, 6u, 92u, 94u},
+    {35u, 63u, 4u, 60u, 64u},   {21u, 62u, 21u, 113u, 93u},
+    {21u, 65u, 4u, 62u, 66u},   {6u, 64u, 14u, 114u, 112u},
+    {6u, 67u, 4u, 64u, 68u},    {25u, 66u, 15u, 105u, 115u},
+    {25u, 69u, 4u, 66u, 70u},   {12u, 68u, 11u, 103u, 104u},
+    {12u, 71u, 4u, 68u, 72u},   {38u, 70u, 10u, 100u, 102u},
+    {38u, 73u, 4u, 70u, 3u},    {7u, 72u, 16u, 5u, 101u},
+    {27u, 75u, 4u, 13u, 76u},   {9u, 74u, 9u, 99u, 11u},
+    {9u, 77u, 4u, 74u, 78u},    {33u, 76u, 8u, 96u, 98u},
+    {33u, 79u, 4u, 76u, 80u},   {16u, 78u, 19u, 119u, 97u},
+    {16u, 81u, 4u, 78u, 82u},   {15u, 80u, 18u, 117u, 118u},
+    {15u, 83u, 4u, 80u, 84u},   {29u, 82u, 17u, 107u, 116u},
+    {29u, 85u, 4u, 82u, 86u},   {5u, 84u, 12u, 108u, 106u},
+    {5u, 87u, 4u, 84u, 88u},    {39u, 86u, 13u, 110u, 109u},
+    {39u, 89u, 4u, 86u, 51u},   {20u, 88u, 20u, 53u, 111u},
+    {31u, 91u, 5u, 31u, 57u},   {26u, 90u, 7u, 59u, 29u},
+    {37u, 93u, 6u, 27u, 61u},   {35u, 92u, 21u, 63u, 25u},
+    {10u, 95u, 6u, 61u, 27u},   {2u, 94u, 7u, 29u, 59u},
+    {36u, 97u, 8u, 47u, 77u},   {33u, 96u, 19u, 79u, 45u},
+    {9u, 99u, 8u, 77u, 47u},    {3u, 98u, 9u, 49u, 75u},
+    {32u, 101u, 10u, 17u, 71u}, {38u, 100u, 16u, 73u, 15u},
+    {12u, 103u, 10u, 71u, 17u}, {4u, 102u, 11u, 19u, 69u},
+    {25u, 105u, 11u, 69u, 19u}, {30u, 104u, 15u, 21u, 67u},
+    {29u, 107u, 12u, 85u, 39u}, {24u, 106u, 17u, 41u, 83u},
+    {11u, 109u, 12u, 39u, 85u}, {5u, 108u, 13u, 87u, 37u},
+    {34u, 111u, 13u, 37u, 87u}, {39u, 110u, 20u, 89u, 35u},
+    {21u, 113u, 14u, 65u, 23u}, {19u, 112u, 21u, 25u, 63u},
+    {13u, 115u, 14u, 23u, 65u}, {6u, 114u, 15u, 67u, 21u},
+    {15u, 117u, 17u, 83u, 41u}, {8u, 116u, 18u, 43u, 81u},
+    {16u, 119u, 18u, 81u, 43u}, {23u, 118u, 19u, 45u, 79u},
+};
+
+static const b3Face k_cylinder_hull_faces[22] = {
+    {0u},  {8u},   {7u},   {50u},  {56u},  {55u},  {27u},  {95u},
+    {47u}, {99u},  {17u},  {103u}, {85u},  {109u}, {65u},  {115u},
+    {73u}, {41u},  {117u}, {79u},  {53u},  {113u},
+};
+
+static const b3HalfEdge k_cone_hull_edges[80] = {
+    {0u, 1u, 0u, 4u, 2u},       {19u, 0u, 1u, 8u, 6u},
+    {19u, 3u, 0u, 0u, 4u},      {8u, 2u, 17u, 11u, 71u},
+    {8u, 5u, 0u, 2u, 0u},       {0u, 4u, 2u, 7u, 10u},
+    {0u, 7u, 1u, 1u, 8u},       {18u, 6u, 2u, 44u, 5u},
+    {18u, 9u, 1u, 6u, 1u},      {19u, 8u, 3u, 46u, 45u},
+    {8u, 11u, 2u, 5u, 12u},     {15u, 10u, 17u, 71u, 3u},
+    {15u, 13u, 2u, 10u, 14u},   {5u, 12u, 12u, 67u, 70u},
+    {5u, 15u, 2u, 12u, 16u},    {17u, 14u, 11u, 68u, 66u},
+    {17u, 17u, 2u, 14u, 18u},   {6u, 16u, 14u, 73u, 69u},
+    {6u, 19u, 2u, 16u, 20u},    {13u, 18u, 13u, 74u, 72u},
+    {13u, 21u, 2u, 18u, 22u},   {11u, 20u, 20u, 61u, 75u},
+    {11u, 23u, 2u, 20u, 24u},   {3u, 22u, 8u, 57u, 60u},
+    {3u, 25u, 2u, 22u, 26u},    {20u, 24u, 7u, 58u, 56u},
+    {20u, 27u, 2u, 24u, 28u},   {9u, 26u, 18u, 79u, 59u},
+    {9u, 29u, 2u, 26u, 30u},    {7u, 28u, 16u, 77u, 78u},
+    {7u, 31u, 2u, 28u, 32u},    {12u, 30u, 15u, 55u, 76u},
+    {12u, 33u, 2u, 30u, 34u},   {2u, 32u, 6u, 51u, 54u},
+    {2u, 35u, 2u, 32u, 36u},    {16u, 34u, 5u, 52u, 50u},
+    {16u, 37u, 2u, 34u, 38u},   {10u, 36u, 19u, 65u, 53u},
+    {10u, 39u, 2u, 36u, 40u},   {4u, 38u, 10u, 63u, 64u},
+    {4u, 41u, 2u, 38u, 42u},    {14u, 40u, 9u, 49u, 62u},
+    {14u, 43u, 2u, 40u, 44u},   {1u, 42u, 4u, 47u, 48u},
+    {1u, 45u, 2u, 42u, 7u},     {18u, 44u, 3u, 9u, 46u},
+    {1u, 47u, 3u, 45u, 9u},     {19u, 46u, 4u, 48u, 43u},
+    {14u, 49u, 4u, 43u, 47u},   {19u, 48u, 9u, 62u, 41u},
+    {2u, 51u, 5u, 35u, 52u},    {19u, 50u, 6u, 54u, 33u},
+    {19u, 53u, 5u, 50u, 35u},   {16u, 52u, 19u, 37u, 65u},
+    {12u, 55u, 6u, 33u, 51u},   {19u, 54u, 15u, 76u, 31u},
+    {3u, 57u, 7u, 25u, 58u},    {19u, 56u, 8u, 60u, 23u},
+    {19u, 59u, 7u, 56u, 25u},   {20u, 58u, 18u, 27u, 79u},
+    {11u, 61u, 8u, 23u, 57u},   {19u, 60u, 20u, 75u, 21u},
+    {4u, 63u, 9u, 41u, 49u},    {19u, 62u, 10u, 64u, 39u},
+    {10u, 65u, 10u, 39u, 63u},  {19u, 64u, 19u, 53u, 37u},
+    {5u, 67u, 11u, 15u, 68u},   {19u, 66u, 12u, 70u, 13u},
+    {19u, 69u, 11u, 66u, 15u},  {17u, 68u, 14u, 17u, 73u},
+    {15u, 71u, 12u, 13u, 67u},  {19u, 70u, 17u, 3u, 11u},
+    {6u, 73u, 13u, 19u, 74u},   {19u, 72u, 14u, 69u, 17u},
+    {19u, 75u, 13u, 72u, 19u},  {13u, 74u, 20u, 21u, 61u},
+    {7u, 77u, 15u, 31u, 55u},   {19u, 76u, 16u, 78u, 29u},
+    {9u, 79u, 16u, 29u, 77u},   {19u, 78u, 18u, 59u, 27u},
+};
+
+static const b3Face k_cone_hull_faces[21] = {
+    {0u},  {6u},  {5u},  {46u}, {43u}, {50u}, {33u},
+    {56u}, {23u}, {62u}, {39u}, {66u}, {13u}, {72u},
+    {17u}, {76u}, {29u}, {3u},  {27u}, {37u}, {21u},
+};
+
+static const uint32 k_cylinder_top_edge_indices[B3_CYLINDER_HULL_SEGMENTS] = {
+    6u,  8u,  14u, 16u, 18u, 20u, 22u, 24u, 26u, 28u,
+    30u, 32u, 34u, 36u, 38u, 40u, 42u, 44u, 46u, 48u,
+};
+
+static const uint32 k_cylinder_bottom_edge_indices[B3_CYLINDER_HULL_SEGMENTS] = {
+    2u,  12u, 50u, 56u, 58u, 60u, 62u, 64u, 66u, 68u,
+    70u, 72u, 74u, 76u, 78u, 80u, 82u, 84u, 86u, 88u,
+};
+
+static const uint32 k_cylinder_side_edge_indices[B3_CYLINDER_HULL_SEGMENTS] = {
+    0u,   4u,   10u,  52u,  54u,  90u,  92u,
+    94u,  96u,  98u,  100u, 102u, 104u, 106u,
+    108u, 110u, 112u, 114u, 116u, 118u,
+};
+
+static const uint32 k_cylinder_top_edge_angle_indices
+    [B3_CYLINDER_HULL_SEGMENTS] = {
+        14u, 6u,  8u,  48u, 46u, 44u, 42u, 40u, 38u, 36u,
+        34u, 32u, 30u, 28u, 26u, 24u, 22u, 20u, 18u, 16u,
+};
+
+static const uint32 k_cylinder_bottom_edge_angle_indices
+    [B3_CYLINDER_HULL_SEGMENTS] = {
+        72u, 2u,  12u, 74u, 76u, 78u, 80u, 82u, 84u, 86u,
+        88u, 50u, 56u, 58u, 60u, 62u, 64u, 66u, 68u, 70u,
+};
+
+static const uint32 k_cylinder_side_edge_angle_indices
+    [B3_CYLINDER_HULL_SEGMENTS] = {
+        100u, 4u,   0u,   10u,  98u,  96u,  118u,
+        116u, 106u, 108u, 110u, 52u,  54u,  90u,
+        94u,  92u,  112u, 114u, 104u, 102u,
+};
+
+static const b3Vec2 k_cylinder_top_edge_midpoints[B3_CYLINDER_HULL_SEGMENTS] = {
+    {0.8800371289f, 0.4484007508f},
+    {0.6984016001f, 0.6984008849f},
+    {0.9755284190f, 0.1545082778f},
+    {0.9755282402f, -0.1545085162f},
+    {0.8800367117f, -0.4484011680f},
+    {0.6984010339f, -0.6984011829f},
+    {0.4484009743f, -0.8800368011f},
+    {0.1545083015f, -0.9755282700f},
+    {-0.1545087309f, -0.9755282402f},
+    {-0.4484013915f, -0.8800366819f},
+    {-0.6984013915f, -0.6984009445f},
+    {-0.8800369501f, -0.4484008402f},
+    {-0.9755283892f, -0.1545081418f},
+    {-0.9755282998f, 0.1545089055f},
+    {-0.8800366521f, 0.4484015405f},
+    {-0.6984009147f, 0.6984014809f},
+    {-0.4484008253f, 0.8800370097f},
+    {-0.1545080976f, 0.9755284190f},
+    {0.1545089646f, 0.9755282998f},
+    {0.4484016299f, 0.8800366521f},
+};
+
+static const b3Vec2
+    k_cylinder_bottom_edge_midpoints[B3_CYLINDER_HULL_SEGMENTS] = {
+        {0.8800371289f, 0.4484007508f},
+        {0.6984016001f, 0.6984008849f},
+        {-0.8800369501f, -0.4484008402f},
+        {-0.6984013915f, -0.6984009445f},
+        {-0.4484013915f, -0.8800366819f},
+        {-0.1545087309f, -0.9755282402f},
+        {0.1545083015f, -0.9755282700f},
+        {0.4484009743f, -0.8800368011f},
+        {0.6984010339f, -0.6984011829f},
+        {0.8800367117f, -0.4484011680f},
+        {0.9755282402f, -0.1545085162f},
+        {0.9755284190f, 0.1545082778f},
+        {0.4484016299f, 0.8800366521f},
+        {0.1545089646f, 0.9755282998f},
+        {-0.1545080976f, 0.9755284190f},
+        {-0.4484008253f, 0.8800370097f},
+        {-0.6984009147f, 0.6984014809f},
+        {-0.8800366521f, 0.4484015405f},
+        {-0.9755282998f, 0.1545089055f},
+        {-0.9755283892f, -0.1545081418f},
+};
+
+static const b3Vec2 k_cylinder_side_edge_midpoints[B3_CYLINDER_HULL_SEGMENTS] = {
+    {0.8090174198f, 0.5877849460f},
+    {0.9510568380f, 0.3090165555f},
+    {0.5877857804f, 0.8090168238f},
+    {-0.9510566592f, -0.3090166748f},
+    {-0.8090172410f, -0.5877850056f},
+    {-0.5877855420f, -0.8090168834f},
+    {-0.0000002207f, -1.0000000000f},
+    {-0.3090172410f, -0.9510564804f},
+    {0.0000004498f, 1.0000001192f},
+    {0.3090174794f, 0.9510564804f},
+    {1.0000000000f, 0.0000000000f},
+    {0.9510564804f, -0.3090170324f},
+    {0.8090169430f, -0.5877853036f},
+    {-0.8090168238f, 0.5877856612f},
+    {-0.9510564804f, 0.3090174198f},
+    {-1.0000001192f, 0.0000003912f},
+    {0.3090168238f, -0.9510565400f},
+    {0.5877851248f, -0.8090170622f},
+    {-0.5877850056f, 0.8090173006f},
+    {-0.3090166450f, 0.9510567188f},
+};
+
+static const b3Plane k_cylinder_hull_unit_planes[22] = {
+    {{0.89100682735443115234f, 0.0f, 0.45399010181427001953f},
+     0.98768866062164306641f},
+    {{0.70710718631744384766f, 0.0f, 0.70710641145706176758f},
+     0.98768854141235351563f},
+    {{0.0f, 1.0f, 0.0f}, 1.0f},
+    {{-0.89100670814514160156f, 0.0f, -0.45399013161659240723f},
+     0.98768842220306396484f},
+    {{0.0f, -1.0f, 0.0f}, 1.0f},
+    {{-0.70710712671279907227f, 0.0f, -0.70710653066635131836f},
+     0.98768848180770874023f},
+    {{-0.15643458068370819092f, 0.0f, -0.98768836259841918945f},
+     0.98768842220306396484f},
+    {{-0.45399063825607299805f, 0.0f, -0.89100646972656250000f},
+     0.98768842220306396484f},
+    {{0.15643493831157684326f, 0.0f, 0.98768830299377441406f},
+     0.98768848180770874023f},
+    {{0.45399075746536254883f, 0.0f, 0.89100635051727294922f},
+     0.98768836259841918945f},
+    {{0.98768830299377441406f, 0.0f, -0.15643455088138580322f},
+     0.98768830299377441406f},
+    {{0.89100646972656250000f, 0.0f, -0.45399051904678344727f},
+     0.98768830299377441406f},
+    {{-0.89100635051727294922f, 0.0f, 0.45399084687232971191f},
+     0.98768842220306396484f},
+    {{-0.98768830299377441406f, 0.0f, 0.15643493831157684326f},
+     0.98768842220306396484f},
+    {{0.45399031043052673340f, 0.0f, -0.89100658893585205078f},
+     0.98768830299377441406f},
+    {{0.70710670948028564453f, 0.0f, -0.70710688829421997070f},
+     0.98768830299377441406f},
+    {{0.98768848180770874023f, 0.0f, 0.15643368661403656006f},
+     0.98768854141235351563f},
+    {{-0.70710653066635131836f, 0.0f, 0.70710712671279907227f},
+     0.98768854141235351563f},
+    {{-0.45399010181427001953f, 0.0f, 0.89100670814514160156f},
+     0.98768842220306396484f},
+    {{-0.15643416345119476318f, 0.0f, 0.98768842220306396484f},
+     0.98768848180770874023f},
+    {{-0.98768842220306396484f, 0.0f, -0.15643437206745147705f},
+     0.98768848180770874023f},
+    {{0.15643437206745147705f, 0.0f, -0.98768842220306396484f},
+     0.98768836259841918945f},
+};
+
+static const b3Plane k_cone_hull_unit_planes[21] = {
+    {{-0.79889804124832153320f, 0.44279259443283081055f,
+      -0.40705847740173339844f},
+     0.44279259443283081055f},
+    {{-0.88558518886566162109f, 0.44279265403747558594f,
+      -0.14026281237602233887f},
+     0.44279262423515319824f},
+    {{0.0f, -1.0f, 0.0f}, 1.0f},
+    {{-0.88558501005172729492f, 0.44279259443283081055f,
+      0.14026330411434173584f},
+     0.44279262423515319824f},
+    {{-0.79889774322509765625f, 0.44279259443283081055f,
+      0.40705913305282592773f},
+     0.44279265403747558594f},
+    {{0.14026331901550292969f, 0.44279259443283081055f,
+      0.88558501005172729492f},
+     0.44279265403747558594f},
+    {{0.40705907344818115234f, 0.44279259443283081055f,
+      0.79889774322509765625f},
+     0.44279265403747558594f},
+    {{0.88558512926101684570f, 0.44279256463050842285f,
+      -0.14026297628879547119f},
+     0.44279259443283081055f},
+    {{0.79889786243438720703f, 0.44279253482818603516f,
+      -0.40705886483192443848f},
+     0.44279256463050842285f},
+    {{-0.63400870561599731445f, 0.44279262423515319824f,
+      0.63400918245315551758f},
+     0.44279256463050842285f},
+    {{-0.40705844759941101074f, 0.44279259443283081055f,
+      0.79889804124832153320f},
+     0.44279265403747558594f},
+    {{-0.14026300609111785889f, 0.44279259443283081055f,
+      -0.88558506965637207031f},
+     0.44279253482818603516f},
+    {{-0.40705892443656921387f, 0.44279259443283081055f,
+      -0.79889780282974243164f},
+     0.44279259443283081055f},
+    {{0.40705865621566772461f, 0.44279253482818603516f,
+      -0.79889798164367675781f},
+     0.44279259443283081055f},
+    {{0.14026281237602233887f, 0.44279256463050842285f,
+      -0.88558518886566162109f},
+     0.44279259443283081055f},
+    {{0.63400930166244506836f, 0.44279262423515319824f,
+      0.63400864601135253906f},
+     0.44279265403747558594f},
+    {{0.79889810085296630859f, 0.44279265403747558594f,
+      0.40705841779708862305f},
+     0.44279265403747558594f},
+    {{-0.63400924205780029297f, 0.44279265403747558594f,
+      -0.63400876522064208984f},
+     0.44279265403747558594f},
+    {{0.88558530807495117188f, 0.44279265403747558594f,
+      0.14026220142841339111f},
+     0.44279268383979797363f},
+    {{-0.14026261866092681885f, 0.44279259443283081055f,
+      0.88558512926101684570f},
+     0.44279259443283081055f},
+    {{0.63400888442993164063f, 0.44279256463050842285f,
+      -0.63400906324386596680f},
+     0.44279259443283081055f},
+};
+
 typedef struct b3TopologyFaceQuery {
   uint32 index;
   scalar separation;
@@ -9245,6 +9617,21 @@ static void collide_manifold_clear(b3Manifold *manifold) {
       manifold->points[i].normalImpulse = 0.0f;
       manifold->points[i].persistCount = 0u;
       manifold->points[i].edgeContact = false;
+    }
+  }
+}
+
+static void collide_manifold_clear_contact_state(b3Manifold *manifold) {
+  if (manifold != NULL) {
+    manifold->tangentImpulse1 = 0.0f;
+    manifold->tangentImpulse2 = 0.0f;
+    manifold->motorImpulse = 0.0f;
+    manifold->motorSpeed = 0.0f;
+    manifold->tangentSpeed1 = 0.0f;
+    manifold->tangentSpeed2 = 0.0f;
+    for (uint32 i = 0u; i < manifold->pointCount; ++i) {
+      manifold->points[i].normalImpulse = 0.0f;
+      manifold->points[i].persistCount = 0u;
     }
   }
 }
@@ -11316,6 +11703,229 @@ static bool hull_topology_from_shape(const b3HullShape *shape,
   return false;
 }
 
+static bool cylinder_extents_from_vertices(const b3Vec3 *vertices, uint32 count,
+                                           scalar *outRadius, scalar *outEy) {
+  if (vertices == NULL || count != B3_CYLINDER_HULL_SEGMENTS * 2u ||
+      outRadius == NULL || outEy == NULL) {
+    return false;
+  }
+
+  scalar radius = fabsf(vertices[32u].x);
+  scalar ey = fabsf(vertices[32u].y);
+  scalar maxExtent = fmaxf(radius, ey);
+  scalar tolerance = fmaxf(B3_LINEAR_SLOP, 1.0e-4f * maxExtent);
+  if (radius <= B3_EPSILON || ey <= B3_EPSILON) {
+    return false;
+  }
+
+  if (fabsf(vertices[32u].x - radius) > tolerance ||
+      fabsf(vertices[32u].z) > tolerance ||
+      fabsf(vertices[32u].y - ey) > tolerance ||
+      fabsf(vertices[38u].x - radius) > tolerance ||
+      fabsf(vertices[38u].z) > tolerance ||
+      fabsf(vertices[38u].y + ey) > tolerance ||
+      fabsf(vertices[34u].x + radius) > tolerance ||
+      fabsf(vertices[34u].z) > tolerance ||
+      fabsf(vertices[34u].y - ey) > tolerance ||
+      fabsf(vertices[39u].x + radius) > tolerance ||
+      fabsf(vertices[39u].z) > tolerance ||
+      fabsf(vertices[39u].y + ey) > tolerance) {
+    return false;
+  }
+
+  *outRadius = radius;
+  *outEy = ey;
+  return true;
+}
+
+static bool cylinder_extents_from_shape(const b3HullShape *shape,
+                                        scalar *outRadius, scalar *outEy) {
+  if (shape == NULL || outRadius == NULL || outEy == NULL ||
+      shape->hull != NULL || shape->genericHull != NULL ||
+      shape->vertices == NULL) {
+    return false;
+  }
+
+  if (shape->builtinHullType == B3_HULL_SHAPE_BUILTIN_CYLINDER) {
+    if (shape->builtinRadius <= B3_EPSILON ||
+        shape->builtinEy <= B3_EPSILON) {
+      return false;
+    }
+    *outRadius = shape->builtinRadius;
+    *outEy = shape->builtinEy;
+    return true;
+  }
+
+  return cylinder_extents_from_vertices(shape->vertices, shape->vertexCount,
+                                        outRadius, outEy);
+}
+
+static bool cone_extents_from_vertices(const b3Vec3 *vertices, uint32 count,
+                                       scalar *outRadius, scalar *outEy) {
+  if (vertices == NULL || count != B3_CONE_HULL_SEGMENTS + 1u ||
+      outRadius == NULL || outEy == NULL) {
+    return false;
+  }
+
+  scalar radius = fabsf(vertices[20u].x);
+  scalar ey = fabsf(vertices[19u].y);
+  scalar maxExtent = fmaxf(radius, ey);
+  scalar tolerance = fmaxf(B3_LINEAR_SLOP, 1.0e-4f * maxExtent);
+  if (radius <= B3_EPSILON || ey <= B3_EPSILON) {
+    return false;
+  }
+
+  if (fabsf(vertices[19u].x) > tolerance ||
+      fabsf(vertices[19u].y - ey) > tolerance ||
+      fabsf(vertices[19u].z) > tolerance ||
+      fabsf(vertices[20u].x - radius) > tolerance ||
+      fabsf(vertices[20u].y + ey) > tolerance ||
+      fabsf(vertices[20u].z) > tolerance ||
+      fabsf(vertices[18u].x + radius) > tolerance ||
+      fabsf(vertices[18u].y + ey) > tolerance ||
+      fabsf(vertices[18u].z) > tolerance ||
+      fabsf(vertices[16u].x) > tolerance ||
+      fabsf(vertices[16u].y + ey) > tolerance ||
+      fabsf(vertices[16u].z - radius) > tolerance ||
+      fabsf(vertices[17u].x) > tolerance ||
+      fabsf(vertices[17u].y + ey) > tolerance ||
+      fabsf(vertices[17u].z + radius) > tolerance) {
+    return false;
+  }
+
+  *outRadius = radius;
+  *outEy = ey;
+  return true;
+}
+
+static bool cone_extents_from_shape(const b3HullShape *shape,
+                                    scalar *outRadius, scalar *outEy) {
+  if (shape == NULL || outRadius == NULL || outEy == NULL ||
+      shape->hull != NULL || shape->genericHull != NULL ||
+      shape->vertices == NULL) {
+    return false;
+  }
+
+  if (shape->builtinHullType == B3_HULL_SHAPE_BUILTIN_CONE) {
+    if (shape->builtinRadius <= B3_EPSILON ||
+        shape->builtinEy <= B3_EPSILON) {
+      return false;
+    }
+    *outRadius = shape->builtinRadius;
+    *outEy = shape->builtinEy;
+    return true;
+  }
+
+  return cone_extents_from_vertices(shape->vertices, shape->vertexCount,
+                                    outRadius, outEy);
+}
+
+static bool cylinder_topology_from_shape(const b3HullShape *shape,
+                                         b3BuiltInHullTopology *scratch,
+                                         b3HullTopology *out) {
+  if (shape == NULL || scratch == NULL || out == NULL ||
+      shape->vertices == NULL) {
+    return false;
+  }
+
+  scalar radius = 0.0f;
+  scalar ey = 0.0f;
+  if (!cylinder_extents_from_shape(shape, &radius, &ey)) {
+    return false;
+  }
+
+  const b3Plane *planes = k_cylinder_hull_unit_planes;
+  scalar maxExtent = fmaxf(radius, ey);
+  scalar tolerance = fmaxf(B3_LINEAR_SLOP, 1.0e-4f * maxExtent);
+  if (fabsf(radius - 1.0f) > tolerance || fabsf(ey - 1.0f) > tolerance) {
+    for (uint32 i = 0u; i < B3_CYLINDER_HULL_SEGMENTS + 2u; ++i) {
+      scratch->cylinderPlanes[i] = k_cylinder_hull_unit_planes[i];
+      scalar scale = fabsf(scratch->cylinderPlanes[i].normal.y) > 0.5f ? ey
+                                                                        : radius;
+      scratch->cylinderPlanes[i].offset *= scale;
+    }
+    planes = scratch->cylinderPlanes;
+  }
+
+  out->vertices = shape->vertices;
+  out->vertexCount = shape->vertexCount;
+  out->edges = k_cylinder_hull_edges;
+  out->edgeCount = B3_CYLINDER_HULL_SEGMENTS * 6u;
+  out->faces = k_cylinder_hull_faces;
+  out->planes = planes;
+  out->faceCount = B3_CYLINDER_HULL_SEGMENTS + 2u;
+  out->centroid = b3Vec3_Make(0.0f, 0.0f, 0.0f);
+  return true;
+}
+
+static b3Plane scale_cone_plane(b3Plane plane, scalar radius, scalar ey) {
+  b3Vec3 normal = b3Vec3_Make(plane.normal.x / radius, plane.normal.y / ey,
+                              plane.normal.z / radius);
+  scalar length = collide_length(normal);
+  if (length <= B3_EPSILON) {
+    return plane;
+  }
+  plane.normal = collide_vec3_mul(normal, 1.0f / length);
+  plane.offset /= length;
+  return plane;
+}
+
+static bool cone_topology_from_shape(const b3HullShape *shape,
+                                     b3BuiltInHullTopology *scratch,
+                                     b3HullTopology *out) {
+  if (shape == NULL || scratch == NULL || out == NULL ||
+      shape->vertices == NULL) {
+    return false;
+  }
+
+  scalar radius = 0.0f;
+  scalar ey = 0.0f;
+  if (!cone_extents_from_shape(shape, &radius, &ey)) {
+    return false;
+  }
+
+  const b3Plane *planes = k_cone_hull_unit_planes;
+  scalar maxExtent = fmaxf(radius, ey);
+  scalar tolerance = fmaxf(B3_LINEAR_SLOP, 1.0e-4f * maxExtent);
+  if (fabsf(radius - 1.0f) > tolerance || fabsf(ey - 1.0f) > tolerance) {
+    for (uint32 i = 0u; i < B3_CONE_HULL_SEGMENTS + 1u; ++i) {
+      scratch->conePlanes[i] =
+          scale_cone_plane(k_cone_hull_unit_planes[i], radius, ey);
+    }
+    planes = scratch->conePlanes;
+  }
+
+  out->vertices = shape->vertices;
+  out->vertexCount = shape->vertexCount;
+  out->edges = k_cone_hull_edges;
+  out->edgeCount = B3_CONE_HULL_SEGMENTS * 4u;
+  out->faces = k_cone_hull_faces;
+  out->planes = planes;
+  out->faceCount = B3_CONE_HULL_SEGMENTS + 1u;
+  out->centroid = b3Vec3_Make(0.0f, -0.5f * ey, 0.0f);
+  return true;
+}
+
+static bool hull_shape_has_builtin_topology(const b3HullShape *shape) {
+  scalar radius = 0.0f;
+  scalar ey = 0.0f;
+  return cylinder_extents_from_shape(shape, &radius, &ey) ||
+         cone_extents_from_shape(shape, &radius, &ey);
+}
+
+static bool hull_topology_from_shape_with_builtin(
+    const b3HullShape *shape, b3HullTopology *out,
+    b3BuiltInHullTopology *scratch) {
+  if (hull_topology_from_shape(shape, out)) {
+    return true;
+  }
+  if (shape == NULL || shape->hull != NULL || shape->genericHull != NULL) {
+    return false;
+  }
+  return cylinder_topology_from_shape(shape, scratch, out) ||
+         cone_topology_from_shape(shape, scratch, out);
+}
+
 static bool hull_topology_from_hull(const b3Hull *hull, b3HullTopology *out) {
   if (hull == NULL || out == NULL || hull->vertices == NULL ||
       hull->edges == NULL || hull->faces == NULL || hull->planes == NULL ||
@@ -11515,6 +12125,327 @@ static b3TopologyEdgeQuery query_topology_edge_separation(
         out.separation = separation;
       }
     }
+  }
+  return out;
+}
+
+static const b3Vec2 *cylinder_edge_midpoints_for_indices(
+    const uint32 *edgeIndices) {
+  if (edgeIndices == k_cylinder_top_edge_indices) {
+    return k_cylinder_top_edge_midpoints;
+  }
+  if (edgeIndices == k_cylinder_bottom_edge_indices) {
+    return k_cylinder_bottom_edge_midpoints;
+  }
+  if (edgeIndices == k_cylinder_side_edge_indices) {
+    return k_cylinder_side_edge_midpoints;
+  }
+  return NULL;
+}
+
+static const uint32 *cylinder_edge_angle_indices_for_indices(
+    const uint32 *edgeIndices) {
+  if (edgeIndices == k_cylinder_top_edge_indices) {
+    return k_cylinder_top_edge_angle_indices;
+  }
+  if (edgeIndices == k_cylinder_bottom_edge_indices) {
+    return k_cylinder_bottom_edge_angle_indices;
+  }
+  if (edgeIndices == k_cylinder_side_edge_indices) {
+    return k_cylinder_side_edge_angle_indices;
+  }
+  return NULL;
+}
+
+static scalar cylinder_fast_atan2(scalar y, scalar x) {
+  const scalar quarterPi = B3_PI * 0.25f;
+  const scalar threeQuarterPi = B3_PI * 0.75f;
+  scalar absY = fabsf(y) + 1.0e-10f;
+  scalar angle;
+  scalar r;
+  if (x < 0.0f) {
+    r = (x + absY) / (absY - x);
+    angle = threeQuarterPi;
+  } else {
+    r = (x - absY) / (x + absY);
+    angle = quarterPi;
+  }
+  angle += (0.1963f * r * r - 0.9817f) * r;
+  return y < 0.0f ? -angle : angle;
+}
+
+static inline uint32 cylinder_edge_angle_bin(b3Vec3 direction,
+                                             scalar angleOffset) {
+  scalar angle = cylinder_fast_atan2(direction.z, direction.x) + angleOffset;
+  const scalar twoPi = 2.0f * B3_PI;
+  if (angle < 0.0f) {
+    angle += twoPi;
+  }
+  if (angle >= twoPi) {
+    angle -= twoPi;
+  }
+  uint32 bin =
+      (uint32)(angle * ((scalar)B3_CYLINDER_HULL_SEGMENTS / twoPi) + 0.5f);
+  if (bin >= B3_CYLINDER_HULL_SEGMENTS) {
+    bin -= B3_CYLINDER_HULL_SEGMENTS;
+  }
+  return bin;
+}
+
+static inline uint32 select_cylinder_cap_edge_candidate(bool topCap,
+                                                        b3Vec3 direction) {
+  const uint32 *angleIndices = topCap ? k_cylinder_top_edge_angle_indices
+                                      : k_cylinder_bottom_edge_angle_indices;
+  return angleIndices[cylinder_edge_angle_bin(direction, -B3_PI / 20.0f)];
+}
+
+static inline uint32 select_cylinder_side_edge_candidate(b3Vec3 direction) {
+  return k_cylinder_side_edge_angle_indices[
+      cylinder_edge_angle_bin(direction, 0.0f)];
+}
+
+static uint32 select_cylinder_edge_candidate(
+    const b3HullTopology *hull, const uint32 *edgeIndices, uint32 edgeCount,
+    b3Vec3 direction) {
+  if (hull == NULL || edgeIndices == NULL || edgeCount == 0u) {
+    return B3_NULL_EDGE;
+  }
+  const uint32 *angleIndices = cylinder_edge_angle_indices_for_indices(edgeIndices);
+  if (angleIndices != NULL && edgeCount == B3_CYLINDER_HULL_SEGMENTS) {
+    uint32 bin = cylinder_edge_angle_bin(
+        direction,
+        edgeIndices != k_cylinder_side_edge_indices ? -B3_PI / 20.0f : 0.0f);
+    return angleIndices[bin];
+  }
+
+  const b3Vec2 *midpoints = cylinder_edge_midpoints_for_indices(edgeIndices);
+  if (midpoints != NULL && edgeCount == B3_CYLINDER_HULL_SEGMENTS) {
+    uint32 bestEdge = B3_NULL_EDGE;
+    scalar bestScore = -INFINITY;
+    for (uint32 i = 0u; i < B3_CYLINDER_HULL_SEGMENTS; ++i) {
+      scalar score =
+          midpoints[i].x * direction.x + midpoints[i].y * direction.z;
+      if (score > bestScore) {
+        bestScore = score;
+        bestEdge = edgeIndices[i];
+      }
+    }
+    return bestEdge;
+  }
+
+  uint32 bestEdge = B3_NULL_EDGE;
+  scalar bestScore = -INFINITY;
+  for (uint32 i = 0u; i < edgeCount; ++i) {
+    uint32 edgeIndex = edgeIndices[i];
+    if (edgeIndex + 1u >= hull->edgeCount) {
+      continue;
+    }
+    const b3HalfEdge *edge = &hull->edges[edgeIndex];
+    const b3HalfEdge *twin = &hull->edges[edgeIndex + 1u];
+    if (edge->twin != edgeIndex + 1u || twin->twin != edgeIndex ||
+        edge->origin >= hull->vertexCount ||
+        twin->origin >= hull->vertexCount) {
+      continue;
+    }
+    b3Vec3 midpoint =
+        collide_vec3_mul(collide_vec3_add(hull->vertices[edge->origin],
+                                          hull->vertices[twin->origin]),
+                         0.5f);
+    scalar score = collide_dot(midpoint, direction);
+    if (score > bestScore) {
+      bestScore = score;
+      bestEdge = edgeIndex;
+    }
+  }
+  return bestEdge;
+}
+
+static bool cylinder_edge_direction_world(const b3HullTopology *hull,
+                                          uint32 edgeIndex, b3Transform xf,
+                                          b3Vec3 *outDirection) {
+  if (hull == NULL || outDirection == NULL ||
+      edgeIndex + 1u >= hull->edgeCount) {
+    return false;
+  }
+  const b3HalfEdge *edge = &hull->edges[edgeIndex];
+  const b3HalfEdge *twin = &hull->edges[edgeIndex + 1u];
+  if (edge->twin != edgeIndex + 1u || twin->twin != edgeIndex ||
+      edge->origin >= hull->vertexCount || twin->origin >= hull->vertexCount) {
+    return false;
+  }
+  b3Vec3 localDirection =
+      collide_vec3_sub(hull->vertices[twin->origin],
+                       hull->vertices[edge->origin]);
+  *outDirection = rotate_local_to_world(xf, localDirection);
+  return collide_length_sq(*outDirection) > B3_EPSILON * B3_EPSILON;
+}
+
+static bool query_topology_edge_pair_separation(
+    b3Transform hull1InHull2, b3Vec3 c1, const b3HullTopology *hull1,
+    uint32 i, const b3HullTopology *hull2, uint32 j, scalar *outSeparation) {
+  if (hull1 == NULL || hull2 == NULL || outSeparation == NULL ||
+      i + 1u >= hull1->edgeCount || j + 1u >= hull2->edgeCount) {
+    return false;
+  }
+
+  const b3HalfEdge *edge1 = &hull1->edges[i];
+  const b3HalfEdge *twin1 = &hull1->edges[i + 1u];
+  const b3HalfEdge *edge2 = &hull2->edges[j];
+  const b3HalfEdge *twin2 = &hull2->edges[j + 1u];
+  if (edge1->twin != i + 1u || twin1->twin != i ||
+      edge2->twin != j + 1u || twin2->twin != j ||
+      edge1->origin >= hull1->vertexCount ||
+      twin1->origin >= hull1->vertexCount ||
+      edge2->origin >= hull2->vertexCount ||
+      twin2->origin >= hull2->vertexCount ||
+      edge1->face >= hull1->faceCount ||
+      twin1->face >= hull1->faceCount ||
+      edge2->face >= hull2->faceCount ||
+      twin2->face >= hull2->faceCount) {
+    return false;
+  }
+
+  b3Vec3 p1 =
+      b3Transform_MulPoint(hull1InHull2, hull1->vertices[edge1->origin]);
+  b3Vec3 q1 =
+      b3Transform_MulPoint(hull1InHull2, hull1->vertices[twin1->origin]);
+  b3Vec3 e1 = collide_vec3_sub(q1, p1);
+  b3Vec3 u1 = rotate_local_to_world(hull1InHull2,
+                                    hull1->planes[edge1->face].normal);
+  b3Vec3 v1 = rotate_local_to_world(hull1InHull2,
+                                    hull1->planes[twin1->face].normal);
+
+  b3Vec3 p2 = hull2->vertices[edge2->origin];
+  b3Vec3 q2 = hull2->vertices[twin2->origin];
+  b3Vec3 e2 = collide_vec3_sub(q2, p2);
+  b3Vec3 u2 = hull2->planes[edge2->face].normal;
+  b3Vec3 v2 = hull2->planes[twin2->face].normal;
+
+  if (!is_minkowski_face(u1, v1, collide_vec3_mul(e1, -1.0f),
+                         collide_vec3_mul(u2, -1.0f),
+                         collide_vec3_mul(v2, -1.0f),
+                         collide_vec3_mul(e2, -1.0f))) {
+    return false;
+  }
+
+  *outSeparation = project_topology_edge(p1, q1, e1, p2, e2, c1);
+  return *outSeparation > -INFINITY;
+}
+
+static void query_edge_candidate_pair(
+    b3TopologyEdgeQuery *out, b3Transform hull1InHull2, b3Vec3 c1,
+    const b3HullTopology *hull1, uint32 edge1,
+    const b3HullTopology *hull2, uint32 edge2) {
+  if (out == NULL || edge1 == B3_NULL_EDGE || edge2 == B3_NULL_EDGE) {
+    return;
+  }
+  scalar separation = -INFINITY;
+  if (query_topology_edge_pair_separation(hull1InHull2, c1, hull1, edge1,
+                                          hull2, edge2, &separation) &&
+      separation > out->separation) {
+    out->index1 = edge1;
+    out->index2 = edge2;
+    out->separation = separation;
+  }
+}
+
+static b3TopologyEdgeQuery query_cylinder_pair_edge_candidates(
+    b3Transform xf1, const b3HullTopology *hull1, b3Transform xf2,
+    const b3HullTopology *hull2) {
+  b3TopologyEdgeQuery out = {B3_NULL_EDGE, B3_NULL_EDGE, -INFINITY};
+  if (hull1 == NULL || hull2 == NULL) {
+    return out;
+  }
+
+  b3Vec3 c1World = b3Transform_MulPoint(xf1, hull1->centroid);
+  b3Vec3 c2World = b3Transform_MulPoint(xf2, hull2->centroid);
+  b3Vec3 normalWorld = collide_vec3_sub(c2World, c1World);
+  if (collide_length_sq(normalWorld) <= B3_EPSILON * B3_EPSILON) {
+    normalWorld = rotate_local_to_world(xf1, b3Vec3_Make(1.0f, 0.0f, 0.0f));
+  }
+
+  b3Vec3 dir1 = rotate_world_to_local(xf1, normalWorld);
+  b3Vec3 dir2 =
+      rotate_world_to_local(xf2, collide_vec3_mul(normalWorld, -1.0f));
+  dir1.y = 0.0f;
+  dir2.y = 0.0f;
+  if (collide_length_sq(dir1) <= B3_EPSILON * B3_EPSILON) {
+    dir1 = b3Vec3_Make(1.0f, 0.0f, 0.0f);
+  }
+  if (collide_length_sq(dir2) <= B3_EPSILON * B3_EPSILON) {
+    dir2 = b3Vec3_Make(1.0f, 0.0f, 0.0f);
+  }
+
+  b3Transform hull1InHull2 = b3Transform_MulTTransform(xf2, xf1);
+  b3Vec3 c1 = b3Transform_MulPoint(hull1InHull2, hull1->centroid);
+
+  b3Vec3 axis1 = rotate_local_to_world(xf1, b3Vec3_Make(0.0f, 1.0f, 0.0f));
+  b3Vec3 axis2 = rotate_local_to_world(xf2, b3Vec3_Make(0.0f, 1.0f, 0.0f));
+  const uint32 *capEdges1 =
+      collide_dot(normalWorld, axis1) >= 0.0f
+          ? k_cylinder_top_edge_indices
+          : k_cylinder_bottom_edge_indices;
+  uint32 cap1 = select_cylinder_edge_candidate(
+      hull1, capEdges1, B3_CYLINDER_HULL_SEGMENTS, dir1);
+  b3Vec3 capDirection1;
+  if (cylinder_edge_direction_world(hull1, cap1, xf1, &capDirection1)) {
+    b3Vec3 edgeNormal = collide_cross(capDirection1, axis2);
+    if (collide_length_sq(edgeNormal) > B3_EPSILON * B3_EPSILON) {
+      if (collide_dot(edgeNormal, normalWorld) < 0.0f) {
+        edgeNormal = collide_vec3_mul(edgeNormal, -1.0f);
+      }
+      b3Vec3 sideDir2 =
+          rotate_world_to_local(xf2, collide_vec3_mul(edgeNormal, -1.0f));
+      sideDir2.y = 0.0f;
+      uint32 side2 = select_cylinder_edge_candidate(
+          hull2, k_cylinder_side_edge_indices, B3_CYLINDER_HULL_SEGMENTS,
+          sideDir2);
+      query_edge_candidate_pair(&out, hull1InHull2, c1, hull1, cap1, hull2,
+                                side2);
+    }
+  }
+
+  const uint32 *capEdges2 =
+      collide_dot(collide_vec3_mul(normalWorld, -1.0f), axis2) >= 0.0f
+          ? k_cylinder_top_edge_indices
+          : k_cylinder_bottom_edge_indices;
+  uint32 cap2 = select_cylinder_edge_candidate(
+      hull2, capEdges2, B3_CYLINDER_HULL_SEGMENTS, dir2);
+  b3Vec3 capDirection2;
+  if (cylinder_edge_direction_world(hull2, cap2, xf2, &capDirection2)) {
+    b3Vec3 edgeNormal = collide_cross(axis1, capDirection2);
+    if (collide_length_sq(edgeNormal) > B3_EPSILON * B3_EPSILON) {
+      if (collide_dot(edgeNormal, normalWorld) < 0.0f) {
+        edgeNormal = collide_vec3_mul(edgeNormal, -1.0f);
+      }
+      b3Vec3 sideDir1 = rotate_world_to_local(xf1, edgeNormal);
+      sideDir1.y = 0.0f;
+      uint32 side1 = select_cylinder_edge_candidate(
+          hull1, k_cylinder_side_edge_indices, B3_CYLINDER_HULL_SEGMENTS,
+          sideDir1);
+      query_edge_candidate_pair(&out, hull1InHull2, c1, hull1, side1, hull2,
+                                cap2);
+    }
+  }
+
+  b3Vec3 sideNormal = collide_cross(axis1, axis2);
+  if (collide_length_sq(sideNormal) > B3_EPSILON * B3_EPSILON) {
+    if (collide_dot(sideNormal, normalWorld) < 0.0f) {
+      sideNormal = collide_vec3_mul(sideNormal, -1.0f);
+    }
+    b3Vec3 sideDir1 = rotate_world_to_local(xf1, sideNormal);
+    b3Vec3 sideDir2 =
+        rotate_world_to_local(xf2, collide_vec3_mul(sideNormal, -1.0f));
+    sideDir1.y = 0.0f;
+    sideDir2.y = 0.0f;
+    uint32 side1 = select_cylinder_edge_candidate(
+        hull1, k_cylinder_side_edge_indices, B3_CYLINDER_HULL_SEGMENTS,
+        sideDir1);
+    uint32 side2 = select_cylinder_edge_candidate(
+        hull2, k_cylinder_side_edge_indices, B3_CYLINDER_HULL_SEGMENTS,
+        sideDir2);
+    query_edge_candidate_pair(&out, hull1InHull2, c1, hull1, side1, hull2,
+                              side2);
   }
   return out;
 }
@@ -12387,6 +13318,294 @@ static bool rebuild_topology_overlap_from_cache(
   }
 }
 
+static bool query_topology_face_index_separation(
+    b3Transform xf1, const b3HullTopology *hull1, uint32 faceIndex,
+    b3Transform xf2, const b3HullTopology *hull2, scalar *outSeparation) {
+  if (hull1 == NULL || hull2 == NULL || outSeparation == NULL ||
+      faceIndex >= hull1->faceCount) {
+    return false;
+  }
+
+  b3Transform xf = b3Transform_MulTTransform(xf2, xf1);
+  b3Plane plane = transform_plane(xf, hull1->planes[faceIndex]);
+  *outSeparation = project_topology_hull(hull2, plane);
+  return true;
+}
+
+static bool build_cylinder_edge_contact_from_indices(
+    b3Manifold *manifold, b3Transform xf1, const b3HullTopology *hull1,
+    uint32 edgeIndex1, b3Transform xf2, const b3HullTopology *hull2,
+    uint32 edgeIndex2, scalar separationLimit) {
+  if (manifold == NULL || hull1 == NULL || hull2 == NULL) {
+    return false;
+  }
+
+  const b3HalfEdge *edge1 = &k_cylinder_hull_edges[edgeIndex1];
+  const b3HalfEdge *twin1 = &k_cylinder_hull_edges[edgeIndex1 + 1u];
+  const b3HalfEdge *edge2 = &k_cylinder_hull_edges[edgeIndex2];
+  const b3HalfEdge *twin2 = &k_cylinder_hull_edges[edgeIndex2 + 1u];
+  b3Transform xf12 = b3Transform_MulTTransform(xf1, xf2);
+  b3Vec3 c1 = hull1->centroid;
+  b3Vec3 p1 = hull1->vertices[edge1->origin];
+  b3Vec3 q1 = hull1->vertices[twin1->origin];
+  b3Vec3 e1 = collide_vec3_sub(q1, p1);
+
+  b3Vec3 localP2 = hull2->vertices[edge2->origin];
+  b3Vec3 localQ2 = hull2->vertices[twin2->origin];
+  b3Vec3 p2 = b3Transform_MulPoint(xf12, localP2);
+  b3Vec3 q2 = b3Transform_MulPoint(xf12, localQ2);
+  b3Vec3 e2 = collide_vec3_sub(q2, p2);
+
+  scalar l1Sq = collide_length_sq(e1);
+  scalar l2Sq = collide_length_sq(e2);
+  if (l1Sq < B3_LINEAR_SLOP * B3_LINEAR_SLOP ||
+      l2Sq < B3_LINEAR_SLOP * B3_LINEAR_SLOP) {
+    return false;
+  }
+
+  b3Vec3 normal = collide_cross(e1, e2);
+  scalar normalLengthSq = collide_length_sq(normal);
+  const scalar parallelTol = 0.005f;
+  if (normalLengthSq < parallelTol * parallelTol * l1Sq * l2Sq) {
+    return false;
+  }
+  normal = collide_vec3_mul(normal, 1.0f / sqrtf(normalLengthSq));
+  if (collide_dot(normal, collide_vec3_sub(p1, c1)) < 0.0f) {
+    normal = collide_vec3_mul(normal, -1.0f);
+  }
+  scalar separation = collide_dot(normal, collide_vec3_sub(p2, p1));
+  if (separation > separationLimit) {
+    return false;
+  }
+
+  scalar b = collide_dot(e1, e2);
+  scalar den = l1Sq * l2Sq - b * b;
+  if (fabsf(den) <= B3_EPSILON) {
+    return false;
+  }
+
+  b3Vec3 e3 = collide_vec3_sub(p1, p2);
+  scalar d = collide_dot(e1, e3);
+  scalar e = collide_dot(e2, e3);
+  scalar invDen = 1.0f / den;
+  scalar s = invDen * (b * e - l2Sq * d);
+  scalar t = invDen * (l1Sq * e - b * d);
+
+  b3Vec3 point1 = collide_vec3_add(p1, collide_vec3_mul(e1, s));
+  b3Vec3 localE2 = collide_vec3_sub(localQ2, localP2);
+
+  b3ManifoldPoint *point = &manifold->points[0];
+  point->localNormal1 = normal;
+  point->localPoint1 = point1;
+  point->localPoint2 = collide_vec3_add(localP2, collide_vec3_mul(localE2, t));
+  point->key = make_key(
+      make_pair(edgeIndex1, edgeIndex1 + 1u, edgeIndex2, edgeIndex2 + 1u));
+  point->edgeContact = true;
+  manifold->pointCount = 1u;
+  return true;
+}
+
+static b3Vec3 cylinder_edge_direction_world_unchecked(
+    const b3HullTopology *hull, uint32 edgeIndex, b3Transform xf) {
+  const b3HalfEdge *edge = &k_cylinder_hull_edges[edgeIndex];
+  const b3HalfEdge *twin = &k_cylinder_hull_edges[edgeIndex + 1u];
+  b3Vec3 localDirection =
+      collide_vec3_sub(hull->vertices[twin->origin],
+                       hull->vertices[edge->origin]);
+  return rotate_local_to_world(xf, localDirection);
+}
+
+static bool rebuild_cylinder_cap_side_edge_contact(
+    b3Manifold *manifold, b3Transform xf1, const b3HullTopology *hull1,
+    b3Transform xf2, const b3HullTopology *hull2, b3Vec3 centerDelta,
+    b3Vec3 axis1, b3Vec3 axis2, scalar separationLimit) {
+  b3Vec3 localDir1 = rotate_world_to_local(xf1, centerDelta);
+  localDir1.y = 0.0f;
+  if (collide_length_sq(localDir1) <= B3_EPSILON * B3_EPSILON) {
+    localDir1 = b3Vec3_Make(1.0f, 0.0f, 0.0f);
+  }
+
+  bool useTopCap1 = collide_dot(centerDelta, axis1) >= 0.0f;
+  uint32 cap1 = select_cylinder_cap_edge_candidate(useTopCap1, localDir1);
+  b3Vec3 capDirection1 =
+      cylinder_edge_direction_world_unchecked(hull1, cap1, xf1);
+
+  b3Vec3 edgeNormal = collide_cross(capDirection1, axis2);
+  if (collide_length_sq(edgeNormal) <= B3_EPSILON * B3_EPSILON) {
+    return false;
+  }
+  if (collide_dot(edgeNormal, centerDelta) < 0.0f) {
+    edgeNormal = collide_vec3_mul(edgeNormal, -1.0f);
+  }
+
+  b3Vec3 sideDir2 =
+      rotate_world_to_local(xf2, collide_vec3_mul(edgeNormal, -1.0f));
+  sideDir2.y = 0.0f;
+  uint32 side2 = select_cylinder_side_edge_candidate(sideDir2);
+  return build_cylinder_edge_contact_from_indices(manifold, xf1, hull1, cap1,
+                                                  xf2, hull2, side2,
+                                                  separationLimit);
+}
+
+static bool collide_cylinder_pair_from_candidates(
+    b3Manifold *manifold, b3Transform xf1, const b3HullShape *shape1,
+    const b3HullTopology *hull1, b3Transform xf2,
+    const b3HullShape *shape2, const b3HullTopology *hull2,
+    scalar separationLimit, scalar tolerance) {
+  scalar radius1 = 0.0f;
+  scalar ey1 = 0.0f;
+  scalar radius2 = 0.0f;
+  scalar ey2 = 0.0f;
+  if (manifold == NULL ||
+      !cylinder_extents_from_shape(shape1, &radius1, &ey1) ||
+      !cylinder_extents_from_shape(shape2, &radius2, &ey2)) {
+    return false;
+  }
+
+  b3Vec3 c1World = b3Transform_MulPoint(xf1, hull1->centroid);
+  b3Vec3 c2World = b3Transform_MulPoint(xf2, hull2->centroid);
+  b3Vec3 centerDelta = collide_vec3_sub(c2World, c1World);
+  if (collide_length_sq(centerDelta) <= B3_EPSILON * B3_EPSILON) {
+    centerDelta = rotate_local_to_world(xf1, b3Vec3_Make(1.0f, 0.0f, 0.0f));
+  }
+
+  b3Vec3 axis1 = rotate_local_to_world(xf1, b3Vec3_Make(0.0f, 1.0f, 0.0f));
+  b3Vec3 axis2 = rotate_local_to_world(xf2, b3Vec3_Make(0.0f, 1.0f, 0.0f));
+  b3Vec3 axisCross = collide_cross(axis1, axis2);
+  if (collide_length_sq(axisCross) > 1.0e-6f) {
+    if (rebuild_cylinder_cap_side_edge_contact(
+            manifold, xf1, hull1, xf2, hull2, centerDelta, axis1, axis2,
+            separationLimit)) {
+      return true;
+    }
+
+    b3TopologyEdgeQuery edgeQuery =
+        query_cylinder_pair_edge_candidates(xf1, hull1, xf2, hull2);
+    if (edgeQuery.index1 != B3_NULL_EDGE &&
+        edgeQuery.index2 != B3_NULL_EDGE &&
+        edgeQuery.separation <= separationLimit &&
+        build_topology_edge_contact(manifold, xf1, hull1, edgeQuery.index1,
+                                    xf2, hull2, edgeQuery.index2)) {
+      return true;
+    }
+  }
+
+  b3Vec3 localDir1 = rotate_world_to_local(xf1, centerDelta);
+  b3Vec3 localDir2 =
+      rotate_world_to_local(xf2, collide_vec3_mul(centerDelta, -1.0f));
+  uint32 face1 = hull_topology_support_face(hull1, localDir1);
+  uint32 face2 = hull_topology_support_face(hull2, localDir2);
+  if (collide_length_sq(axisCross) <= 1.0e-6f) {
+    if (build_topology_face_contact(manifold, xf2, shape2, hull2, face2, xf1,
+                                    shape1, hull1, true, tolerance)) {
+      return true;
+    }
+    if (build_topology_face_contact(manifold, xf1, shape1, hull1, face1, xf2,
+                                    shape2, hull2, false, tolerance)) {
+      return true;
+    }
+    return false;
+  }
+
+  scalar faceSeparation1 = -INFINITY;
+  scalar faceSeparation2 = -INFINITY;
+  if (!query_topology_face_index_separation(xf1, hull1, face1, xf2, hull2,
+                                            &faceSeparation1) ||
+      !query_topology_face_index_separation(xf2, hull2, face2, xf1, hull1,
+                                            &faceSeparation2)) {
+    return false;
+  }
+  if (faceSeparation1 > separationLimit ||
+      faceSeparation2 > separationLimit) {
+    return true;
+  }
+
+  const scalar satTol = 0.1f * B3_LINEAR_SLOP;
+  b3TopologyEdgeQuery edgeQuery =
+      query_cylinder_pair_edge_candidates(xf1, hull1, xf2, hull2);
+  scalar bestFaceSeparation = fmaxf(faceSeparation1, faceSeparation2);
+  if (edgeQuery.index1 != B3_NULL_EDGE && edgeQuery.index2 != B3_NULL_EDGE &&
+      edgeQuery.separation <= separationLimit &&
+      edgeQuery.separation > bestFaceSeparation + satTol) {
+    return build_topology_edge_contact(manifold, xf1, hull1, edgeQuery.index1,
+                                       xf2, hull2, edgeQuery.index2);
+  }
+  return false;
+}
+
+static bool hull_shape_is_builtin_cylinder(const b3HullShape *shape) {
+  scalar radius = 0.0f;
+  scalar ey = 0.0f;
+  return cylinder_extents_from_shape(shape, &radius, &ey);
+}
+
+static bool hull_shape_is_unit_builtin_cylinder(const b3HullShape *shape) {
+  scalar radius = 0.0f;
+  scalar ey = 0.0f;
+  return cylinder_extents_from_shape(shape, &radius, &ey) &&
+         fabsf(radius - 1.0f) <= B3_LINEAR_SLOP &&
+         fabsf(ey - 1.0f) <= B3_LINEAR_SLOP;
+}
+
+static b3HullTopology builtin_cylinder_topology_from_shape(
+    const b3HullShape *shape) {
+  b3HullTopology topology = {
+      shape->vertices,
+      shape->vertexCount,
+      k_cylinder_hull_edges,
+      B3_CYLINDER_HULL_SEGMENTS * 6u,
+      k_cylinder_hull_faces,
+      k_cylinder_hull_unit_planes,
+      B3_CYLINDER_HULL_SEGMENTS + 2u,
+      b3Vec3_Make(0.0f, 0.0f, 0.0f),
+  };
+  return topology;
+}
+
+static bool collide_builtin_cylinder_pair(
+    b3Manifold *manifold, b3Transform xf1, const b3HullShape *shape1,
+    b3Transform xf2, const b3HullShape *shape2, scalar tolerance) {
+  if (manifold == NULL || !hull_shape_is_builtin_cylinder(shape1) ||
+      !hull_shape_is_builtin_cylinder(shape2)) {
+    return false;
+  }
+
+  b3HullTopology hull1 = builtin_cylinder_topology_from_shape(shape1);
+  b3HullTopology hull2 = builtin_cylinder_topology_from_shape(shape2);
+  scalar separationLimit = shape1->base.radius + shape2->base.radius + tolerance;
+
+  b3Vec3 centerDelta = collide_vec3_sub(xf2.translation, xf1.translation);
+  if (collide_length_sq(centerDelta) <= B3_EPSILON * B3_EPSILON) {
+    centerDelta = rotate_local_to_world(xf1, b3Vec3_Make(1.0f, 0.0f, 0.0f));
+  }
+
+  b3Vec3 axis1 = rotate_local_to_world(xf1, b3Vec3_Make(0.0f, 1.0f, 0.0f));
+  b3Vec3 axis2 = rotate_local_to_world(xf2, b3Vec3_Make(0.0f, 1.0f, 0.0f));
+  b3Vec3 axisCross = collide_cross(axis1, axis2);
+  if (collide_length_sq(axisCross) > 1.0e-6f) {
+    return rebuild_cylinder_cap_side_edge_contact(
+        manifold, xf1, &hull1, xf2, &hull2, centerDelta, axis1, axis2,
+        separationLimit);
+  }
+
+  if (!hull_shape_is_unit_builtin_cylinder(shape1) ||
+      !hull_shape_is_unit_builtin_cylinder(shape2)) {
+    return false;
+  }
+
+  b3Vec3 localDir1 = rotate_world_to_local(xf1, centerDelta);
+  b3Vec3 localDir2 =
+      rotate_world_to_local(xf2, collide_vec3_mul(centerDelta, -1.0f));
+  uint32 face1 = hull_topology_support_face(&hull1, localDir1);
+  uint32 face2 = hull_topology_support_face(&hull2, localDir2);
+  if (build_topology_face_contact(manifold, xf2, shape2, &hull2, face2, xf1,
+                                  shape1, &hull1, true, tolerance)) {
+    return true;
+  }
+  return build_topology_face_contact(manifold, xf1, shape1, &hull1, face1, xf2,
+                                     shape2, &hull2, false, tolerance);
+}
+
 static bool collide_topology_hulls(b3Manifold *manifold, b3Transform xf1,
                                    const b3HullShape *shape1,
                                    const b3HullTopology *hull1,
@@ -12408,7 +13627,12 @@ static bool collide_topology_hulls(b3Manifold *manifold, b3Transform xf1,
   if (hadCacheState) {
     b3SATCacheType oldState = cache->featurePair.state;
     if (oldState == e_overlap && cache->featurePair.type == e_edge1) {
-      if (rebuild_cached_topology_edge_contact(
+      if ((hull_shape_is_builtin_cylinder(shape1) &&
+           hull_shape_is_builtin_cylinder(shape2) &&
+           build_cylinder_edge_contact_from_indices(
+               manifold, xf1, hull1, cache->featurePair.index1, xf2, hull2,
+               cache->featurePair.index2, separationLimit)) ||
+          rebuild_cached_topology_edge_contact(
               manifold, xf1, hull1, cache->featurePair.index1, xf2, hull2,
               cache->featurePair.index2, separationLimit)) {
         return true;
@@ -12429,6 +13653,13 @@ static bool collide_topology_hulls(b3Manifold *manifold, b3Transform xf1,
     cache->featurePair.state = e_empty;
     tolerance = cachedTolerance;
     separationLimit = totalRadius + tolerance;
+  }
+
+  if (cache == NULL &&
+      collide_cylinder_pair_from_candidates(
+          manifold, xf1, shape1, hull1, xf2, shape2, hull2, separationLimit,
+          tolerance)) {
+    return true;
   }
 
   b3TopologyFaceQuery faceQuery1 =
@@ -12857,6 +14088,88 @@ static bool triangle_topology_from_shape(const b3TriangleShape *shape,
   return true;
 }
 
+static bool build_box_vertex_hull_dominant_face_contact(
+    b3Manifold *manifold, const b3HullShape *boxShape,
+    const b3HullShape *vertexShape, const b3Vec3 *hullVertices,
+    uint32 hullVertexCount, b3Transform boxFromHull,
+    b3Quat hullFromBoxRotation) {
+  if (hullVertexCount <= 8u) {
+    return false;
+  }
+
+  b3Vec3 centerInBox = boxFromHull.translation;
+  scalar absX = fabsf(centerInBox.x);
+  scalar absY = fabsf(centerInBox.y);
+  scalar absZ = fabsf(centerInBox.z);
+  uint32 referenceFace;
+  if (absX >= absY && absX >= absZ) {
+    referenceFace = centerInBox.x < 0.0f ? 0u : 4u;
+  } else if (absY >= absZ) {
+    referenceFace = centerInBox.y < 0.0f ? 2u : 5u;
+  } else {
+    referenceFace = centerInBox.z < 0.0f ? 3u : 1u;
+  }
+
+  b3Vec3 tangent1;
+  b3Vec3 tangent2;
+  scalar bound1;
+  scalar bound2;
+  scalar planeOffset;
+  if (!box_face_tangents(boxShape->hull, referenceFace, &tangent1, &bound1,
+                         &tangent2, &bound2, &planeOffset)) {
+    return false;
+  }
+
+  b3Vec3 localNormal = box_face_normal(referenceFace);
+  b3Vec3 normalInHull =
+      collide_quat_rotate_vec3(hullFromBoxRotation, localNormal);
+  scalar normalOffset =
+      collide_dot(boxFromHull.translation, localNormal) - planeOffset;
+  scalar bestSeparation =
+      collide_dot(hullVertices[0], normalInHull) + normalOffset;
+  uint32 bestIndex = 0u;
+  for (uint32 i = 1u; i < hullVertexCount; ++i) {
+    scalar separation =
+        collide_dot(hullVertices[i], normalInHull) + normalOffset;
+    if (separation < bestSeparation) {
+      bestSeparation = separation;
+      bestIndex = i;
+    }
+  }
+
+  scalar totalRadius = boxShape->base.radius + vertexShape->base.radius;
+  scalar tolerance = totalRadius + B3_LINEAR_SLOP;
+  if (bestSeparation > tolerance) {
+    return false;
+  }
+
+  b3Vec3 tangent1InHull =
+      collide_quat_rotate_vec3(hullFromBoxRotation, tangent1);
+  b3Vec3 tangent2InHull =
+      collide_quat_rotate_vec3(hullFromBoxRotation, tangent2);
+  scalar t1 = collide_dot(hullVertices[bestIndex], tangent1InHull) +
+              collide_dot(boxFromHull.translation, tangent1);
+  scalar t2 = collide_dot(hullVertices[bestIndex], tangent2InHull) +
+              collide_dot(boxFromHull.translation, tangent2);
+  if (fabsf(t1) > bound1 + tolerance || fabsf(t2) > bound2 + tolerance) {
+    return false;
+  }
+
+  b3Vec3 projectedLocal =
+      collide_vec3_add(collide_vec3_mul(localNormal, planeOffset),
+                       collide_vec3_add(collide_vec3_mul(tangent1, t1),
+                                        collide_vec3_mul(tangent2, t2)));
+  b3ManifoldPoint *point = &manifold->points[0];
+  point->localNormal1 = localNormal;
+  point->localPoint1 = projectedLocal;
+  point->localPoint2 = hullVertices[bestIndex];
+  point->key =
+      make_key(make_pair(B3_NULL_EDGE, B3_NULL_EDGE, B3_NULL_EDGE, bestIndex));
+  point->edgeContact = false;
+  manifold->pointCount = 1u;
+  return true;
+}
+
 static bool build_box_vertex_hull_contacts(b3Manifold *manifold,
                                            b3Transform xf1,
                                            const b3HullShape *shape1,
@@ -12881,26 +14194,77 @@ static bool build_box_vertex_hull_contacts(b3Manifold *manifold,
                                  -boxFromHull.rotation.v.z},
                                 boxFromHull.rotation.s};
 
-  uint32 referenceFace = 0u;
-  scalar referenceSeparation = -FLT_MAX;
-  for (uint32 face = 0u; face < shape1->hull->faceCount; ++face) {
-    b3Vec3 faceNormal = box_face_normal(face);
-    scalar faceOffset = shape1->hull->planes[face].offset;
-    b3Vec3 normalInHull =
-        collide_quat_rotate_vec3(hullFromBoxRotation, faceNormal);
-    scalar normalOffset =
-        collide_dot(boxFromHull.translation, faceNormal) - faceOffset;
-    scalar separation =
-        collide_dot(hullVertices[0], normalInHull) + normalOffset;
-    for (uint32 i = 1u; i < hullVertexCount; ++i) {
-      scalar candidate =
-          collide_dot(hullVertices[i], normalInHull) + normalOffset;
-      if (candidate < separation) {
-        separation = candidate;
-      }
+  if (build_box_vertex_hull_dominant_face_contact(
+          manifold, shape1, shape2, hullVertices, hullVertexCount, boxFromHull,
+          hullFromBoxRotation)) {
+    return true;
+  }
+
+  b3Vec3 axisXInHull = collide_quat_rotate_vec3(
+      hullFromBoxRotation, b3Vec3_Make(1.0f, 0.0f, 0.0f));
+  b3Vec3 axisYInHull = collide_quat_rotate_vec3(
+      hullFromBoxRotation, b3Vec3_Make(0.0f, 1.0f, 0.0f));
+  b3Vec3 axisZInHull = collide_quat_rotate_vec3(
+      hullFromBoxRotation, b3Vec3_Make(0.0f, 0.0f, 1.0f));
+
+  scalar minX = collide_dot(hullVertices[0], axisXInHull);
+  scalar maxX = minX;
+  scalar minY = collide_dot(hullVertices[0], axisYInHull);
+  scalar maxY = minY;
+  scalar minZ = collide_dot(hullVertices[0], axisZInHull);
+  scalar maxZ = minZ;
+  uint32 minXIndex = 0u;
+  uint32 maxXIndex = 0u;
+  uint32 minYIndex = 0u;
+  uint32 maxYIndex = 0u;
+  uint32 minZIndex = 0u;
+  uint32 maxZIndex = 0u;
+  for (uint32 i = 1u; i < hullVertexCount; ++i) {
+    scalar projection = collide_dot(hullVertices[i], axisXInHull);
+    if (projection < minX) {
+      minX = projection;
+      minXIndex = i;
+    } else if (projection > maxX) {
+      maxX = projection;
+      maxXIndex = i;
     }
-    if (separation > referenceSeparation) {
-      referenceSeparation = separation;
+    projection = collide_dot(hullVertices[i], axisYInHull);
+    if (projection < minY) {
+      minY = projection;
+      minYIndex = i;
+    } else if (projection > maxY) {
+      maxY = projection;
+      maxYIndex = i;
+    }
+    projection = collide_dot(hullVertices[i], axisZInHull);
+    if (projection < minZ) {
+      minZ = projection;
+      minZIndex = i;
+    } else if (projection > maxZ) {
+      maxZ = projection;
+      maxZIndex = i;
+    }
+  }
+
+  scalar separations[6];
+  separations[0] =
+      -maxX - boxFromHull.translation.x - shape1->hull->planes[0].offset;
+  separations[1] =
+      minZ + boxFromHull.translation.z - shape1->hull->planes[1].offset;
+  separations[2] =
+      -maxY - boxFromHull.translation.y - shape1->hull->planes[2].offset;
+  separations[3] =
+      -maxZ - boxFromHull.translation.z - shape1->hull->planes[3].offset;
+  separations[4] =
+      minX + boxFromHull.translation.x - shape1->hull->planes[4].offset;
+  separations[5] =
+      minY + boxFromHull.translation.y - shape1->hull->planes[5].offset;
+
+  uint32 referenceFace = 0u;
+  scalar referenceSeparation = separations[0];
+  for (uint32 face = 1u; face < shape1->hull->faceCount; ++face) {
+    if (separations[face] > referenceSeparation) {
+      referenceSeparation = separations[face];
       referenceFace = face;
     }
   }
@@ -12932,6 +14296,54 @@ static bool build_box_vertex_hull_contacts(b3Manifold *manifold,
       collide_dot(boxFromHull.translation, localNormal) - planeOffset;
   scalar tangent1Offset = collide_dot(boxFromHull.translation, tangent1);
   scalar tangent2Offset = collide_dot(boxFromHull.translation, tangent2);
+  if (hullVertexCount > 8u) {
+    uint32 candidateIndex = maxXIndex;
+    switch (referenceFace) {
+    case 1u:
+      candidateIndex = minZIndex;
+      break;
+    case 2u:
+      candidateIndex = maxYIndex;
+      break;
+    case 3u:
+      candidateIndex = maxZIndex;
+      break;
+    case 4u:
+      candidateIndex = minXIndex;
+      break;
+    case 5u:
+      candidateIndex = minYIndex;
+      break;
+    default:
+      candidateIndex = maxXIndex;
+      break;
+    }
+
+    scalar separation = collide_dot(hullVertices[candidateIndex], normalInHull) +
+                        normalOffset;
+    scalar t1 = collide_dot(hullVertices[candidateIndex], tangent1InHull) +
+                tangent1Offset;
+    scalar t2 = collide_dot(hullVertices[candidateIndex], tangent2InHull) +
+                tangent2Offset;
+    if (separation <= tolerance && fabsf(t1) <= bound1 + tolerance &&
+        fabsf(t2) <= bound2 + tolerance) {
+      b3Vec3 projectedLocal =
+          collide_vec3_add(collide_vec3_mul(localNormal, planeOffset),
+                           collide_vec3_add(collide_vec3_mul(tangent1, t1),
+                                            collide_vec3_mul(tangent2, t2)));
+      b3ManifoldPoint *point = &manifold->points[0];
+      point->localNormal1 = localNormal;
+      point->localPoint1 = projectedLocal;
+      point->localPoint2 = hullVertices[candidateIndex];
+      point->key =
+          make_key(make_pair(B3_NULL_EDGE, B3_NULL_EDGE, B3_NULL_EDGE,
+                             candidateIndex));
+      point->edgeContact = false;
+      manifold->pointCount = 1u;
+      return true;
+    }
+  }
+
   for (uint32 i = 0u; i < hullVertexCount; ++i) {
     scalar separation = collide_dot(hullVertices[i], normalInHull) +
                         normalOffset;
@@ -14761,17 +16173,40 @@ void b3CollideHullAndHull(b3Manifold *manifold, b3Transform xf1,
   if (manifold == NULL || shape1 == NULL || shape2 == NULL) {
     return;
   }
+
+  if (collide_builtin_cylinder_pair(manifold, xf1, shape1, xf2, shape2,
+                                    10.0f * B3_EPSILON)) {
+    collide_manifold_clear_contact_state(manifold);
+    return;
+  }
+
+  if (shape1->hull != NULL && hull_shape_is_vertex_only(shape2) &&
+      build_box_vertex_hull_contacts(manifold, xf1, shape1, xf2, shape2)) {
+    collide_manifold_clear_contact_state(manifold);
+    return;
+  }
+  if (hull_shape_is_vertex_only(shape1) && shape2->hull != NULL &&
+      build_box_vertex_hull_contacts(manifold, xf2, shape2, xf1, shape1)) {
+    swap_manifold_order(manifold, xf1, xf2);
+    collide_manifold_clear_contact_state(manifold);
+    return;
+  }
+
   b3Manifold_Clear(manifold);
 
   bool boxPair = shape1->hull != NULL && shape2->hull != NULL;
   bool translatedBox = hull_shape_has_translated_box(shape1) ||
                        hull_shape_has_translated_box(shape2);
+  bool builtInTopology = hull_shape_has_builtin_topology(shape1) ||
+                         hull_shape_has_builtin_topology(shape2);
   if (shape1->genericHull != NULL || shape2->genericHull != NULL ||
-      translatedBox) {
+      translatedBox || builtInTopology) {
     b3HullTopology topology1;
     b3HullTopology topology2;
-    if (hull_topology_from_shape(shape1, &topology1) &&
-        hull_topology_from_shape(shape2, &topology2)) {
+    b3BuiltInHullTopology builtIn1;
+    b3BuiltInHullTopology builtIn2;
+    if (hull_topology_from_shape_with_builtin(shape1, &topology1, &builtIn1) &&
+        hull_topology_from_shape_with_builtin(shape2, &topology2, &builtIn2)) {
       scalar topologyTolerance = boxPair ? B3_LINEAR_SLOP
                                          : 10.0f * B3_EPSILON;
       if (collide_topology_hulls(manifold, xf1, shape1, &topology1, xf2,
@@ -15100,18 +16535,41 @@ static void collide_hull_and_hull_topology_impl(b3Manifold *manifold,
   if (manifold == NULL || shape1 == NULL || shape2 == NULL) {
     return;
   }
-  b3Manifold_Clear(manifold);
 
   const scalar separationTolerance = B3_LINEAR_SLOP;
   if (box_hulls_separated_with_tolerance(xf1, shape1, xf2, shape2,
                                          separationTolerance)) {
+    b3Manifold_Clear(manifold);
     return;
   }
 
   b3HullTopology topology1;
   b3HullTopology topology2;
-  if (hull_topology_from_shape(shape1, &topology1) &&
-      hull_topology_from_shape(shape2, &topology2) &&
+  b3BuiltInHullTopology builtIn1;
+  b3BuiltInHullTopology builtIn2;
+  bool haveTopology =
+      hull_topology_from_shape_with_builtin(shape1, &topology1, &builtIn1) &&
+      hull_topology_from_shape_with_builtin(shape2, &topology2, &builtIn2);
+  if (haveTopology && cache != NULL &&
+      cache->featurePair.state == e_overlap &&
+      cache->featurePair.type == e_edge1) {
+    scalar separationLimit =
+        shape1->base.radius + shape2->base.radius + cachedTolerance;
+    if ((hull_shape_is_builtin_cylinder(shape1) &&
+         hull_shape_is_builtin_cylinder(shape2) &&
+         build_cylinder_edge_contact_from_indices(
+             manifold, xf1, &topology1, cache->featurePair.index1, xf2,
+             &topology2, cache->featurePair.index2, separationLimit)) ||
+        rebuild_cached_topology_edge_contact(
+            manifold, xf1, &topology1, cache->featurePair.index1, xf2,
+            &topology2, cache->featurePair.index2, separationLimit)) {
+      collide_manifold_clear_contact_state(manifold);
+      return;
+    }
+  }
+
+  b3Manifold_Clear(manifold);
+  if (haveTopology &&
       collide_topology_hulls(manifold, xf1, shape1, &topology1, xf2, shape2,
                              &topology2, seedTolerance, cachedTolerance,
                              cache)) {
@@ -15167,9 +16625,10 @@ void b3CollideTriangleAndHull(b3Manifold *manifold, b3Transform xf1,
   b3Vec3 triangleWorld[3];
   transform_vertices(xf1, triangleLocal, triangleWorld, 3u);
 
-  if (shape2->genericHull != NULL) {
+  if (shape2->genericHull != NULL || hull_shape_has_builtin_topology(shape2)) {
     b3HullTopology triangleTopology;
     b3HullTopology hullTopology;
+    b3BuiltInHullTopology builtIn;
     b3HalfEdge triangleEdges[6];
     b3Face triangleFaces[2];
     b3Plane trianglePlanes[2];
@@ -15179,7 +16638,8 @@ void b3CollideTriangleAndHull(b3Manifold *manifold, b3Transform xf1,
     if (triangle_topology_from_shape(shape1, triangleLocal, triangleEdges,
                                      triangleFaces, trianglePlanes,
                                      &triangleTopology) &&
-        hull_topology_from_shape(shape2, &hullTopology) &&
+        hull_topology_from_shape_with_builtin(shape2, &hullTopology,
+                                              &builtIn) &&
         collide_topology_hulls(manifold, xf1, &triangleHullShape,
                                &triangleTopology, xf2, shape2, &hullTopology,
                                10.0f * B3_EPSILON, 10.0f * B3_EPSILON,
@@ -15288,9 +16748,10 @@ void b3CollideTriangleAndHullTopologyCached(
 
   b3Vec3 triangleLocal[3] = {shape1->vertex1, shape1->vertex2,
                              shape1->vertex3};
-  if (shape2->genericHull != NULL) {
+  if (shape2->genericHull != NULL || hull_shape_has_builtin_topology(shape2)) {
     b3HullTopology triangleTopology;
     b3HullTopology hullTopology;
+    b3BuiltInHullTopology builtIn;
     b3HalfEdge triangleEdges[6];
     b3Face triangleFaces[2];
     b3Plane trianglePlanes[2];
@@ -15300,7 +16761,8 @@ void b3CollideTriangleAndHullTopologyCached(
     if (triangle_topology_from_shape(shape1, triangleLocal, triangleEdges,
                                      triangleFaces, trianglePlanes,
                                      &triangleTopology) &&
-        hull_topology_from_shape(shape2, &hullTopology) &&
+        hull_topology_from_shape_with_builtin(shape2, &hullTopology,
+                                              &builtIn) &&
         collide_topology_hulls(manifold, xf1, &triangleHullShape,
                                &triangleTopology, xf2, shape2, &hullTopology,
                                10.0f * B3_EPSILON, 10.0f * B3_EPSILON,
@@ -16037,6 +17499,7 @@ void b3CollideCapsuleAndCapsule(b3Manifold *manifold, b3Transform xf1,
 #undef collect_vertex_hull_support_face
 #undef vertex_hull_face_basis
 #undef build_box_vertex_hull_contacts
+#undef build_box_vertex_hull_dominant_face_contact
 #undef triangle_topology_from_shape
 #undef collide_topology_hull_capsule
 #undef build_topology_capsule_edge_contact
@@ -16045,6 +17508,15 @@ void b3CollideCapsuleAndCapsule(b3Manifold *manifold, b3Transform xf1,
 #undef query_topology_capsule_edge_separation
 #undef query_topology_capsule_face_separation
 #undef collide_topology_hulls
+#undef collide_builtin_cylinder_pair
+#undef builtin_cylinder_topology_from_shape
+#undef hull_shape_is_unit_builtin_cylinder
+#undef hull_shape_is_builtin_cylinder
+#undef collide_cylinder_pair_from_candidates
+#undef rebuild_cylinder_cap_side_edge_contact
+#undef cylinder_edge_direction_world_unchecked
+#undef build_cylinder_edge_contact_from_indices
+#undef query_topology_face_index_separation
 #undef rebuild_topology_overlap_from_cache
 #undef build_topology_face_contact
 #undef rebuild_cached_topology_edge_contact
@@ -16056,6 +17528,15 @@ void b3CollideCapsuleAndCapsule(b3Manifold *manifold, b3Transform xf1,
 #undef feature_cache_read_topology_state
 #undef feature_cache_read_topology_edge
 #undef feature_cache_read_topology_face
+#undef query_cylinder_pair_edge_candidates
+#undef query_edge_candidate_pair
+#undef query_topology_edge_pair_separation
+#undef cylinder_edge_direction_world
+#undef select_cylinder_edge_candidate
+#undef select_cylinder_side_edge_candidate
+#undef select_cylinder_cap_edge_candidate
+#undef cylinder_edge_angle_bin
+#undef cylinder_fast_atan2
 #undef query_topology_edge_separation
 #undef project_topology_edge
 #undef is_minkowski_face
@@ -16067,6 +17548,15 @@ void b3CollideCapsuleAndCapsule(b3Manifold *manifold, b3Transform xf1,
 #undef hull_shape_has_translated_box
 #undef box_hull_is_centered
 #undef hull_topology_from_hull
+#undef hull_topology_from_shape_with_builtin
+#undef hull_shape_has_builtin_topology
+#undef cone_topology_from_shape
+#undef scale_cone_plane
+#undef cylinder_topology_from_shape
+#undef cone_extents_from_shape
+#undef cone_extents_from_vertices
+#undef cylinder_extents_from_shape
+#undef cylinder_extents_from_vertices
 #undef hull_topology_from_shape
 #undef select_triangle_hull_vertex_contacts
 #undef sort_triangle_hull_contact_indices
@@ -16154,6 +17644,7 @@ void b3CollideCapsuleAndCapsule(b3Manifold *manifold, b3Transform xf1,
 #undef collide_transform_mul_point
 #undef collide_quat_mul
 #undef collide_quat_rotate_vec3
+#undef collide_manifold_clear_contact_state
 #undef collide_manifold_clear
 #undef clip_plane_distance
 
@@ -20535,11 +22026,21 @@ static void contact_update_touching(b3World *world, b3Contact *contact) {
   bool sensor = contact->fixtureA->sensor || contact->fixtureB->sensor;
   b3Transform xfA = body_transform(contact->fixtureA->body);
   b3Transform xfB = body_transform(contact->fixtureB->body);
+  const b3Shape *shapeA = &contact->fixtureA->storage.base;
+  const b3Shape *shapeB = &contact->fixtureB->storage.base;
   bool preferTopologyHulls =
       contact->fixtureA->body->type == e_dynamicBody &&
       contact->fixtureB->body->type == e_dynamicBody;
-  const b3Shape *shapeA = &contact->fixtureA->storage.base;
-  const b3Shape *shapeB = &contact->fixtureB->storage.base;
+  if (!preferTopologyHulls && shapeA->type == e_hullShape &&
+      shapeB->type == e_hullShape) {
+    const b3HullShape *hullA = (const b3HullShape *)shapeA;
+    const b3HullShape *hullB = (const b3HullShape *)shapeB;
+    preferTopologyHulls =
+        hullA->builtinHullType == B3_HULL_SHAPE_BUILTIN_CYLINDER ||
+        hullA->builtinHullType == B3_HULL_SHAPE_BUILTIN_CONE ||
+        hullB->builtinHullType == B3_HULL_SHAPE_BUILTIN_CYLINDER ||
+        hullB->builtinHullType == B3_HULL_SHAPE_BUILTIN_CONE;
+  }
   b3Manifold manifolds[B3_MAX_MANIFOLDS];
   uint32 manifoldCount = 0u;
   bool touching = false;
@@ -31331,6 +32832,9 @@ void b3HullShape_Init(b3HullShape *shape, const b3BoxHull *hull) {
   shape->genericHull = NULL;
   shape->vertices = NULL;
   shape->vertexCount = 0u;
+  shape->builtinHullType = B3_HULL_SHAPE_BUILTIN_NONE;
+  shape->builtinRadius = 0.0f;
+  shape->builtinEy = 0.0f;
 }
 
 void b3HullShape_InitWithHull(b3HullShape *shape, const b3Hull *hull,
@@ -31344,6 +32848,9 @@ void b3HullShape_InitWithHull(b3HullShape *shape, const b3Hull *hull,
   shape->genericHull = hull;
   shape->vertices = NULL;
   shape->vertexCount = 0u;
+  shape->builtinHullType = B3_HULL_SHAPE_BUILTIN_NONE;
+  shape->builtinRadius = 0.0f;
+  shape->builtinEy = 0.0f;
 }
 
 void b3HullShape_InitWithTriangleHull(b3HullShape *shape,
@@ -31360,6 +32867,11 @@ void b3HullShape_InitWithCylinderHull(b3HullShape *shape,
   b3HullShape_InitWithVertices(
       shape, hull != NULL ? hull->vertices : NULL,
       hull != NULL ? hull->vertexCount : 0u, radius);
+  if (shape != NULL && hull != NULL) {
+    shape->builtinHullType = B3_HULL_SHAPE_BUILTIN_CYLINDER;
+    shape->builtinRadius = hull->radius;
+    shape->builtinEy = hull->ey;
+  }
 }
 
 void b3HullShape_InitWithConeHull(b3HullShape *shape, const b3ConeHull *hull,
@@ -31367,6 +32879,11 @@ void b3HullShape_InitWithConeHull(b3HullShape *shape, const b3ConeHull *hull,
   b3HullShape_InitWithVertices(
       shape, hull != NULL ? hull->vertices : NULL,
       hull != NULL ? hull->vertexCount : 0u, radius);
+  if (shape != NULL && hull != NULL) {
+    shape->builtinHullType = B3_HULL_SHAPE_BUILTIN_CONE;
+    shape->builtinRadius = hull->radius;
+    shape->builtinEy = hull->ey;
+  }
 }
 
 void b3HullShape_InitWithVertices(b3HullShape *shape, const b3Vec3 *vertices,
@@ -31386,6 +32903,9 @@ void b3HullShape_InitWithVertices(b3HullShape *shape, const b3Vec3 *vertices,
                              ? vertexCount
                              : B3_MAX_HULL_VERTICES;
   }
+  shape->builtinHullType = B3_HULL_SHAPE_BUILTIN_NONE;
+  shape->builtinRadius = 0.0f;
+  shape->builtinEy = 0.0f;
 }
 
 const b3BoxHull *b3HullShape_GetBoxHull(const b3HullShape *shape) {

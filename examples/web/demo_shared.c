@@ -72,9 +72,9 @@ void demo_zero_state(void) {
   memset(demo_entries, 0, sizeof(demo_entries));
   memset(demo_render_data_values, 0, sizeof(demo_render_data_values));
   demo_entry_count = 0u;
-  demo_player_x_value = 0.0f;
+  demo_player_x_value = 2.6f;
   demo_player_y_value = 0.0f;
-  demo_player_z_value = 7.5f;
+  demo_player_z_value = 17.8f;
   demo_time_accumulator = 0.0f;
 }
 
@@ -210,17 +210,135 @@ b3Body *demo_create_sphere(int kind, bool dynamic, bool target,
                                  restitution);
 }
 
+static b3Body *demo_create_cylinder_body_with_damping(
+    int kind, b3BodyType type, bool target, b3Vec3 position,
+    b3Quat orientation, scalar radius, scalar half_height, scalar density,
+    scalar friction, scalar restitution, b3Vec3 linear_damping,
+    b3Vec3 angular_damping) {
+  DemoRenderBody *entry = demo_alloc_entry();
+  if (entry == NULL || demo_world == NULL) {
+    return NULL;
+  }
+
+  entry->sx = radius;
+  entry->sy = half_height;
+  entry->sz = radius;
+  entry->kind = kind;
+  entry->active = true;
+  entry->target = target;
+
+  b3BodyDef body_def;
+  b3BodyDef_Default(&body_def);
+  body_def.type = type;
+  body_def.position = position;
+  body_def.orientation = orientation;
+  body_def.userData = entry;
+  body_def.linearDamping = linear_damping;
+  body_def.angularDamping = angular_damping;
+
+  b3Body *body = b3World_CreateBody(demo_world, &body_def);
+  if (body == NULL) {
+    entry->active = false;
+    return NULL;
+  }
+
+  b3CylinderHull cylinder_hull;
+  b3CylinderHull_SetExtents(&cylinder_hull, radius, half_height);
+
+  b3HullShape cylinder_shape;
+  b3HullShape_InitWithCylinderHull(&cylinder_shape, &cylinder_hull, 0.0f);
+
+  b3FixtureDef fixture_def;
+  b3FixtureDef_Default(&fixture_def);
+  fixture_def.shape = &cylinder_shape.base;
+  fixture_def.density = type == e_dynamicBody ? density : 0.0f;
+  fixture_def.friction = friction;
+  fixture_def.restitution = restitution;
+  b3Fixture *fixture = b3Body_CreateFixture(body, &fixture_def);
+  if (fixture != NULL) {
+    b3Fixture_SetUserData(fixture, entry);
+  }
+
+  entry->body = body;
+  return body;
+}
+
+b3Body *demo_create_cylinder_body(int kind, b3BodyType type, bool target,
+                                  b3Vec3 position, b3Quat orientation,
+                                  scalar radius, scalar half_height,
+                                  scalar density, scalar friction,
+                                  scalar restitution) {
+  return demo_create_cylinder_body_with_damping(
+      kind, type, target, position, orientation, radius, half_height, density,
+      friction, restitution, demo_vec3(0.02f, 0.02f, 0.02f),
+      demo_vec3(0.02f, 0.02f, 0.02f));
+}
+
+b3Body *demo_create_cylinder(int kind, bool dynamic, bool target,
+                             b3Vec3 position, b3Quat orientation,
+                             scalar radius, scalar half_height, scalar density,
+                             scalar friction, scalar restitution) {
+  return demo_create_cylinder_body(
+      kind, dynamic ? e_dynamicBody : e_staticBody, target, position,
+      orientation, radius, half_height, density, friction, restitution);
+}
+
 void demo_create_arena(void) {
-  demo_create_box(DEMO_KIND_FLOOR, false, false, demo_vec3(0.0f, -0.25f, -3.0f),
-                  b3Quat_identity, 34.0f, 0.5f, 34.0f, 0.0f, 0.85f, 0.02f);
-  demo_create_box(DEMO_KIND_WALL, false, false, demo_vec3(-16.75f, 2.0f, -3.0f),
-                  b3Quat_identity, 0.5f, 4.0f, 34.0f, 0.0f, 0.7f, 0.02f);
-  demo_create_box(DEMO_KIND_WALL, false, false, demo_vec3(16.75f, 2.0f, -3.0f),
-                  b3Quat_identity, 0.5f, 4.0f, 34.0f, 0.0f, 0.7f, 0.02f);
-  demo_create_box(DEMO_KIND_WALL, false, false, demo_vec3(0.0f, 2.0f, -19.75f),
-                  b3Quat_identity, 34.0f, 4.0f, 0.5f, 0.0f, 0.7f, 0.02f);
-  demo_create_box(DEMO_KIND_WALL, false, false, demo_vec3(0.0f, 2.0f, 13.75f),
-                  b3Quat_identity, 34.0f, 4.0f, 0.5f, 0.0f, 0.7f, 0.02f);
+  demo_create_box(DEMO_KIND_FLOOR, false, false, demo_vec3(0.0f, -0.25f, 0.0f),
+                  b3Quat_identity, DEMO_ARENA_HALF_X * 2.0f, 0.5f,
+                  DEMO_ARENA_HALF_Z * 2.0f, 0.0f, 0.86f, 0.02f);
+  demo_create_box(DEMO_KIND_WALL, false, false,
+                  demo_vec3(-DEMO_ARENA_HALF_X - 0.25f, 2.0f, 0.0f),
+                  b3Quat_identity, 0.5f, 4.0f, DEMO_ARENA_HALF_Z * 2.0f,
+                  0.0f, 0.7f, 0.02f);
+  demo_create_box(DEMO_KIND_WALL, false, false,
+                  demo_vec3(DEMO_ARENA_HALF_X + 0.25f, 2.0f, 0.0f),
+                  b3Quat_identity, 0.5f, 4.0f, DEMO_ARENA_HALF_Z * 2.0f,
+                  0.0f, 0.7f, 0.02f);
+  demo_create_box(DEMO_KIND_WALL, false, false,
+                  demo_vec3(0.0f, 2.0f, -DEMO_ARENA_HALF_Z - 0.25f),
+                  b3Quat_identity, DEMO_ARENA_HALF_X * 2.0f, 4.0f, 0.5f,
+                  0.0f, 0.7f, 0.02f);
+  demo_create_box(DEMO_KIND_WALL, false, false,
+                  demo_vec3(0.0f, 2.0f, DEMO_ARENA_HALF_Z + 0.25f),
+                  b3Quat_identity, DEMO_ARENA_HALF_X * 2.0f, 4.0f, 0.5f,
+                  0.0f, 0.7f, 0.02f);
+
+  demo_create_box(DEMO_KIND_TERRAIN, false, false,
+                  demo_vec3(-19.0f, 0.08f, 16.5f), b3QuatRotationX(0.08f),
+                  9.0f, 0.32f, 4.2f, 0.0f, 0.92f, 0.02f);
+  demo_create_box(DEMO_KIND_TERRAIN, false, false,
+                  demo_vec3(17.0f, 0.10f, 18.5f), b3QuatRotationZ(-0.07f),
+                  7.6f, 0.34f, 4.6f, 0.0f, 0.92f, 0.02f);
+  demo_create_box(DEMO_KIND_TERRAIN, false, false,
+                  demo_vec3(-24.0f, 0.07f, -4.0f), b3QuatRotationX(-0.05f),
+                  5.4f, 0.28f, 10.5f, 0.0f, 0.92f, 0.02f);
+  demo_create_box(DEMO_KIND_TERRAIN, false, false,
+                  demo_vec3(20.5f, 0.09f, -15.0f), b3QuatRotationZ(0.05f),
+                  9.2f, 0.30f, 4.0f, 0.0f, 0.92f, 0.02f);
+  demo_create_box(DEMO_KIND_TERRAIN, false, false,
+                  demo_vec3(0.0f, 0.06f, -24.0f), b3QuatRotationX(0.06f),
+                  14.0f, 0.24f, 3.4f, 0.0f, 0.92f, 0.02f);
+
+  const b3Vec3 barrel_positions[] = {
+      {-4.0f, 0.58f, 20.5f}, {-2.9f, 0.58f, 20.3f},
+      {-1.8f, 0.58f, 20.7f}, {4.2f, 0.58f, 18.4f},
+      {5.1f, 0.58f, 18.9f},  {6.0f, 0.58f, 18.2f},
+      {-16.0f, 0.58f, 9.0f}, {-15.1f, 0.58f, 8.4f},
+      {15.5f, 0.58f, -3.4f}, {16.4f, 0.58f, -2.8f},
+      {17.3f, 0.58f, -3.6f}, {-18.0f, 0.58f, -16.0f},
+  };
+  for (uint32 i = 0u;
+       i < (uint32)(sizeof(barrel_positions) / sizeof(barrel_positions[0]));
+       ++i) {
+    b3Body *barrel = demo_create_cylinder(
+        DEMO_KIND_BARREL, true, false, barrel_positions[i], b3Quat_identity,
+        0.34f, 0.56f, 0.62f, 0.78f, 0.08f);
+    if (barrel != NULL) {
+      b3Body_SetMaxLinearVelocity(barrel, 28.0f);
+      b3Body_SetMaxAngularVelocity(barrel, 34.0f);
+    }
+  }
 }
 
 void demo_update_render_data(void) {
